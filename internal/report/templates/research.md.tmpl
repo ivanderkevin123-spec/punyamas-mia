@@ -1,0 +1,105 @@
+# {{.Title}} — {{.BrandName}}
+{{if .Failed}}
+> **RUN GAGAL / TIDAK LENGKAP.** Laporan ini tidak boleh dibaca sebagai hasil riset yang selesai. Langkah yang gagal tercantum di bagian Status.
+{{end}}
+| Run | Status | Dibuat (UTC) | Selesai (UTC) | Penyedia AI | Masukan | Konfigurasi |
+|---|---|---|---|---|---|---|
+| `{{.RunID}}` | **{{.StatusLabel}}** | {{.CreatedAt}} | {{.FinishedAt}} | {{.Provider}} | `{{.Inputs}}` | `{{.ConfigHash}}` |
+
+Semua temuan di bawah berstatus **draf untuk ditinjau manusia**. Fakta bersumber, interpretasi model, dan hipotesis dipisahkan; skor atau prioritas belum dihitung pada tahap ini.
+
+## 1. Ringkasan eksekutif
+
+- Sumber: {{.Counts.Sources}} · Butir diimpor: {{.Counts.ItemsImported}} (dipakai ulang: {{.Counts.ItemsReused}}) · Duplikat: {{.Counts.Duplicates}} · Mencurigakan: {{.Counts.Suspicious}}
+- Fakta bersumber: {{.Counts.Facts}} · Interpretasi model: {{.Counts.Interpretations}} · Hipotesis: {{.Counts.Hypotheses}} · Ditolak validasi: {{.Counts.Rejected}}
+- Temuan agen: {{.Counts.AgentFindings}} diterima, {{.Counts.AgentRejected}} ditolak · Tanda klaim terlarang: {{.Counts.ClaimFlags}}
+- Biaya: {{.CostTotal}}{{if not .CostMeasurable}} (**tidak dapat diukur sepenuhnya; estimasi**){{end}} · Plafon bulanan: {{.MonthlyCeiling}}
+
+## 2. Status langkah
+
+| Langkah | Status | Percobaan | Catatan |
+|---|---|---|---|
+{{range .Steps}}| {{.Name}} | {{.Status}} | {{.Attempts}} | {{.Error}} |
+{{end}}
+{{if .Errors}}### Kesalahan
+{{range .Errors}}- {{.}}
+{{end}}{{end}}
+{{if .Warnings}}### Peringatan
+{{range .Warnings}}- {{.}}
+{{end}}{{end}}
+## 3. Fakta bersumber ({{len .Facts}})
+{{if not .Facts}}
+_Tidak ada fakta bersumber pada run ini._
+{{end}}{{range .Facts}}
+### [{{.Ref}}] {{.Title}}
+
+- **Pernyataan:** {{.Statement}}
+- **Kualitas bukti:** {{.Quality}}{{if .TopicKey}} · **Topik:** {{.TopicKey}}{{end}}
+{{if .Source}}- **Sumber:** {{.Source.Name}} — `{{.Source.Reference}}` (diambil {{.Source.RetrievedAt}}{{if .Source.PublishedAt}}, terbit {{.Source.PublishedAt}}{{end}}){{if .Locator}} · {{.Locator}}{{end}}
+{{end}}{{if .Excerpt}}- **Kutipan:** "{{.Excerpt}}"
+{{end}}{{if .Claims}}- **Tanda klaim terlarang (jangan dipakai dalam konten Punyamas):** {{range $i, $c := .Claims}}{{if $i}}; {{end}}{{$c}}{{end}}
+{{end}}{{end}}
+## 4. Interpretasi model ({{len .Interps}})
+{{if not .Interps}}
+_Tidak ada interpretasi._
+{{end}}{{range .Interps}}
+### [{{.Ref}}] {{.Title}}
+
+- **Pernyataan:** {{.Statement}}
+- **Alasan (menurut model):** {{.Rationale}}
+- **Mengutip:** {{range $i, $c := .Cites}}{{if $i}}, {{end}}`{{$c}}`{{end}}
+- **Kualitas bukti pendukung terlemah:** {{.Quality}}{{if .TopicKey}} · **Topik:** {{.TopicKey}}{{end}}
+{{if .Claims}}- **Tanda klaim terlarang:** {{range $i, $c := .Claims}}{{if $i}}; {{end}}{{$c}}{{end}}
+{{end}}{{end}}
+## 5. Hipotesis ({{len .Hyps}})
+{{if not .Hyps}}
+_Tidak ada hipotesis._
+{{end}}{{range .Hyps}}
+- **[{{.Ref}}] {{.Title}}** — {{.Statement}}{{if .Cites}} (mengutip {{range $i, $c := .Cites}}{{if $i}}, {{end}}`{{$c}}`{{end}}){{end}}{{if .Source}} · sumber internal: `{{.Source.Reference}}`{{end}}{{if .Rationale}} · alasan: {{.Rationale}}{{end}}
+{{end}}
+## 6. Sumber ({{len .Sources}})
+
+| Nama | Referensi | Jenis | Diambil | Terbit |
+|---|---|---|---|---|
+{{range .Sources}}| {{.Name}} | `{{.Reference}}` | {{.Type}} | {{.RetrievedAt}} | {{.PublishedAt}} |
+{{end}}
+## 7. Ditolak validasi, duplikat, dan konten mencurigakan
+{{if .Rejected}}
+### Ditolak ({{len .Rejected}})
+{{range .Rejected}}- **[{{.Ref}}] {{.Title}}** ({{.Kind}}): {{range $i, $e := .Errors}}{{if $i}}; {{end}}{{$e}}{{end}}
+{{end}}{{end}}{{if .Dups}}
+### Duplikat ({{len .Dups}})
+{{range .Dups}}- [{{.Ref}}] {{.Title}} → duplikat dari `{{.DuplicateOf}}`
+{{end}}{{end}}{{if .Susp}}
+### Konten mencurigakan — dikecualikan dari masukan agen ({{len .Susp}})
+{{range .Susp}}- [{{.Ref}}] {{.Title}}
+{{end}}{{end}}{{if and (not .Rejected) (not .Dups) (not .Susp)}}
+_Tidak ada._
+{{end}}
+## 8. Aset ruang kerja Punyamas (baca-saja)
+{{if not .Drift}}
+_Tidak diperiksa pada run ini._
+{{end}}{{range .Drift}}- **{{.Key}}** (`{{.Path}}`): {{.Status}}{{if .Details}}{{range .Details}}
+  - {{.}}{{end}}{{end}}
+{{end}}
+## 9. Eksekusi agen dan biaya
+
+| Eksekusi | Agen | Penyedia | Model | Hasil | Token masuk | Token keluar | Biaya |
+|---|---|---|---|---|---|---|---|
+{{range .Execs}}| `{{.ID}}` | {{.Agent}} | {{.Provider}} | {{.Model}} | {{.Outcome}} | {{.InputTokens}} | {{.OutputTokens}} | {{.Cost}} |
+{{end}}{{if not .Execs}}| — | — | — | — | tidak ada panggilan | 0 | 0 | USD 0.0000 |
+{{end}}
+Total biaya run: **{{.CostTotal}}**{{if not .CostMeasurable}} — _biaya tidak dapat diukur sepenuhnya; estimasi digunakan_{{end}}.
+
+## 10. Asumsi dan ketidakpastian
+
+- Kualitas bukti: A = sumber primer bertanggal yang diamati langsung; B = sumber sekunder kredibel; C = anekdot/forum/tidak terverifikasi; D = tanpa bukti eksternal (hipotesis).
+- Interpretasi dibuat oleh model (penyedia: {{.Provider}}) dari butir yang dikutip; ia bukan fakta dan belum ditinjau manusia.
+- Pemeriksa klaim hanya menyaring kata dan frasa; ia tidak menilai makna.
+
+## 11. Langkah berikutnya
+{{range .NextSteps}}
+- {{.}}{{end}}
+
+---
+_Dibuat {{.Generated}} oleh MIA (mode {{.Provider}}). Laporan dirender dari rekaman yang tervalidasi, bukan dari teks mentah model._

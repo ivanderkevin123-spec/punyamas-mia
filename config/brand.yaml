@@ -1,0 +1,43 @@
+# MIA brand configuration — summarized read-only from bots/punyamas/docs/02-brand/B1-arah-dan-strategi-merek.md.
+source_of_truth:
+  path: docs/02-brand/B1-arah-dan-strategi-merek.md
+  workspace_root: ~/Documents/bots/punyamas
+  sha256: ""          # recorded by `mia config check`
+  workspace_commit: "0fac37a"
+  imported_at: "2026-10-12"
+name: Punyamas
+status: "Pra-peluncuran; PT belum berdiri; nama belum lolos pemeriksaan merek (D-019); tidak ada kegiatan publik sebelum syarat M1 §2 terpenuhi."
+positioning: "Tempat pembelian emas yang menimbang, menguji, dan menghitung di depan Anda, dengan dasar hitung yang dapat dilihat (ASUMSI, B1 §6). Pembeda: kejelasan, bukan harga tertinggi."
+pre_opening_language: "bahasa niat (kami akan ...) sampai toko beroperasi dan bukti berjalan disetujui CEO (D-005)"
+pillars:
+  - { id: PM1, name: Terlihat, promise: "Barang ditimbang dan diuji di depan customer", allowed_claim: "Ditimbang dan diuji di depan Anda", forbidden_claim: "Paling akurat, 100% akurat" }
+  - { id: PM2, name: Jelas, promise: "Harga datang dengan dasar hitungnya", allowed_claim: "Dasar hitung ditampilkan", forbidden_claim: "Harga tertinggi, tanpa potongan" }
+  - { id: PM3, name: Tertib, promise: "Setiap transaksi dicatat dengan identitas dan bukti", allowed_claim: "Setiap transaksi dicatat", forbidden_claim: "Tanpa KYC, tanpa ribet" }
+  - { id: PM4, name: Tenang, promise: "Tidak ada tekanan; ragu berarti kami jelaskan", allowed_claim: "Boleh menolak, barang kembali utuh", forbidden_claim: "Dijamin puas, pasti cocok" }
+tone:
+  - { id: KP1, name: Tenang, means: "Kalimat tidak terburu-buru, tanpa tanda seru berlebihan, tidak menekan keputusan", not: "Berteriak, mendesak, obral" }
+  - { id: KP2, name: Jelas, means: "Angka dengan satuan, alasan di samping angka, kalimat pendek", not: "Istilah teknis tanpa penjelasan, kalimat berbelit" }
+  - { id: KP3, name: Teliti, means: "Konsisten: angka yang sama di layar, struk, dan pesan; mengakui detail", not: "Pembulatan seenaknya, janji yang tidak bisa diperiksa" }
+  - { id: KP4, name: "Rendah hati", means: "Mengakui batas, meminta maaf dengan tulus, tidak menuduh", not: "Menyalahkan customer, sok tahu, membanggakan diri" }
+language_rules:
+  - "Sapaan Bapak atau Ibu; kata ganti kami (Punyamas) dan Anda; bahasa Indonesia baku sehari-hari."
+  - "Pakai satuan g, permil, Rp; tulis angka seperti di layar; istilah internal (XRF, TAHAN, T2) tidak dipakai kepada customer."
+  - "Tanpa emoji dan tanpa slang pada komunikasi transaksi; kutipan harga selalu menyebut masa berlaku."
+  - "Kepada pembeli bisnis: formal, ringkas, berpusat pada lot, kadar, dokumen, dan jadwal."
+  - "Pada situasi sulit pakai kalimat netral dari SOP; jangan menyebut kecurigaan, laporan, atau PPATK."
+audiences:
+  - { id: AU1, name: "Penjual perorangan", wants: "Harga yang wajar, urusan singkat, tidak dipermalukan", fears: "Ditipu timbangan atau kadar, dipotong semena-mena, urusan identitas, keamanan membawa barang", must_trust: "Timbangan dan uji terlihat; hitungan bisa dijelaskan; boleh menolak", channels: [toko, "rekomendasi dari mulut ke mulut", WhatsApp, "peta daring"] }
+  - { id: AU2, name: "Penjual berulang", wants: "Harga konsisten, proses cepat, hubungan jangka panjang", fears: "Harga berubah tanpa alasan, antrean, perlakuan berbeda", must_trust: "Rumus yang sama setiap kali; riwayat transaksi jelas", channels: [toko, WhatsApp] }
+  - { id: AU3, name: "Pembeli bisnis", wants: "Kepastian kadar dan berat, dokumen lengkap, ketepatan serah dan bayar", fears: "Selisih kadar, sengketa, dokumen pajak kurang", must_trust: "Syarat penyelesaian tertulis; dokumen lengkap; riwayat tertib", channels: [pertemuan, WhatsApp, email, "company profile"] }
+  - { id: AU4, name: "Konsumen akhir", wants: "Barang asli, harga jelas", fears: "Palsu, harga tidak jelas, garansi", must_trust: "Hasil uji tercatat di struk; harga dengan dasar", channels: [toko] }
+  - { id: AU5, name: "Mitra profesional", wants: "Usaha yang tertib dan patuh", fears: "Risiko pencucian uang, pajak, dokumen", must_trust: "Kepatuhan nyata dan profil perusahaan yang jujur", channels: ["company profile", pertemuan] }
+key_messages:
+  - { audiences: [AU1, AU2], message: "Barang Anda ditimbang dan diuji di depan Anda, dan harga datang dengan dasar hitungnya." }
+  - { audiences: [AU3], message: "Syarat kadar, berat, dan penyelesaian jelas sejak awal, dan dokumennya lengkap." }
+  - { audiences: [AU4], message: "Hasil uji barang tercatat di struk Anda." }
+  - { audiences: [AU5], message: "Kami menjalankan kewajiban identitas, pajak, dan pembukuan sejak transaksi pertama." }
+tagline_candidates:
+  - { id: TG1, text: "Ditimbang dan diuji di depan Anda.", checker: LOLOS }
+  - { id: TG2, text: "Harga jelas, dasar hitungnya Anda lihat.", checker: LOLOS }
+  - { id: TG3, text: "Punya emas? Kami timbang di depan Anda.", checker: LOLOS }
+  - { id: TG4, text: "Emas Anda, dihitung dengan terang.", checker: LOLOS }

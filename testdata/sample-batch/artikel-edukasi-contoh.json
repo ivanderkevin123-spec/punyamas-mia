@@ -1,0 +1,28 @@
+[
+  {
+    "source_name": "CONTOH — artikel edukasi fiktif (pengujian)",
+    "reference": "https://example.com/contoh/cara-jual-emas",
+    "publisher": "Penerbit contoh (fiktif)",
+    "retrieved_at": "2026-10-11",
+    "published_at": "2026-09-01",
+    "source_type": "imported_file",
+    "kind": "fact",
+    "quality": "B",
+    "language": "id",
+    "sample": true,
+    "items": [
+      {
+        "title": "Artikel contoh menyarankan memeriksa timbangan di depan penjual",
+        "statement": "Artikel contoh menyarankan agar penjual meminta penimbangan dilakukan di depan mata dan menanyakan kadar yang dipakai sebagai dasar harga.",
+        "excerpt": "Mintalah agar timbangan dilakukan di depan Anda dan tanyakan kadar yang menjadi dasar harga.",
+        "topic_key": "transparansi_penimbangan"
+      },
+      {
+        "title": "Artikel contoh menjelaskan bahwa penawaran bisa berbeda antar toko",
+        "statement": "Artikel contoh menyatakan bahwa penawaran harga untuk barang yang sama dapat berbeda antar toko karena perbedaan metode uji dan potongan.",
+        "excerpt": "Penawaran dapat berbeda antar toko karena metode uji dan potongan yang berbeda.",
+        "topic_key": "praktik_harga_pesaing"
+      }
+    ]
+  }
+]

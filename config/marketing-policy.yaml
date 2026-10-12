@@ -1,0 +1,51 @@
+# MIA marketing claim policy — ported from the Punyamas workspace checker (read-only source).
+# Source of truth: bots/punyamas/tools/spec-oracle/brand-oracle.mjs, VERSI 'v0.1-ASUMSI'.
+# Patterns are RE2 translations of the original JavaScript regexes; word lists are copied verbatim
+# so `mia config check` can diff them against the workspace file. Final list pending the
+# advertising-law consultant (N70). The checker filters words only; it does not judge meaning.
+source_of_truth:
+  path: tools/spec-oracle/brand-oracle.mjs
+  workspace_root: ~/Documents/bots/punyamas
+  sha256: ""          # recorded in the database by `mia config check` (first import = baseline)
+  workspace_commit: "0fac37a"
+  imported_at: "2026-10-12"
+  note: "Word lists copied by hand on 2026-10-12; drift is detected automatically."
+version: v0.1-ASUMSI
+note: "Daftar ini adalah ASUMSI kerja; konsultan hukum periklanan menetapkan versi akhir (N70)."
+rules:
+  - category: SUPERLATIF
+    words: [terbaik, termurah, tertinggi, terbesar, terlengkap, terpercaya, tercepat, teraman, terjamin, terunggul, termahal, terdepan, termudah, terjujur]
+    pattern: '(?i)\b(terbaik|termurah|tertinggi|terbesar|terlengkap|terpercaya|tercepat|teraman|terjamin|terunggul|termahal|terdepan|termudah|terjujur)\b'
+    reason: 'Kata berawalan "ter" bermakna superlatif memerlukan bukti otentik (Etika Pariwara; UU 8/1999 Pasal 9 dan 17)'
+  - category: SUPERLATIF
+    words: [paling baik, paling murah, paling tinggi, paling besar, paling lengkap, paling cepat, paling aman, paling dipercaya, paling jujur, paling mudah, paling unggul, paling mahal]
+    pattern: '(?i)\bpaling (baik|murah|tinggi|besar|lengkap|cepat|aman|dipercaya|jujur|mudah|unggul|mahal)\b'
+    reason: 'Superlatif dengan "paling"'
+  - category: PERINGKAT
+    words: [nomor satu, nomor 1, no. 1, nomor wahid, juara]
+    pattern: '(?i)\b(nomor satu|nomor 1|no\.? ?1|nomor wahid|juara)\b'
+    reason: 'Klaim peringkat tanpa dasar yang dapat diperiksa'
+  - category: ABSOLUT
+    words: ['100%', seratus persen, dijamin, jaminan, garansi, pasti, tanpa risiko]
+    pattern: '(?i)(?:^|[^\w])100 ?%|\b(seratus persen|dijamin|jaminan|garansi|pasti|tanpa risiko)\b'
+    reason: 'Klaim mutlak atau jaminan hasil yang tidak dapat dipertanggungjawabkan'
+  - category: BERTENTANGAN_KEBIJAKAN
+    words: [tanpa KYC, tanpa identitas, tanpa KTP, tanpa syarat, tanpa potongan, tanpa ribet, tanpa antre, tanpa dokumen, tanpa biaya]
+    pattern: '(?i)\btanpa (kyc|identitas|ktp|syarat|potongan|ribet|antre|dokumen|biaya)\b'
+    reason: 'Bertentangan dengan kebijakan Punyamas (identitas wajib untuk semua transaksi, D-013; potongan dan pengurang dalam aturan harga #5 tahap 1)'
+  - category: KECEPATAN_UANG
+    words: [langsung cair, cair instan, cair cepat, cair hari ini, uang langsung, uang instan, cash instan, instan]
+    pattern: '(?i)\b(langsung cair|cair (instan|cepat|hari ini)|uang (langsung|instan)|cash instan|instan)\b'
+    reason: 'Pembayaran bergantung pada konfirmasi dana, batas tunai, dan proses KYC'
+  - category: KEUANGAN
+    words: [investasi, untung, keuntungan, cuan, imbal hasil, bunga, gadai, pinjaman]
+    pattern: '(?i)\b(investasi|untung|keuntungan|cuan|imbal hasil|bunga|gadai|pinjaman)\b'
+    reason: 'Punyamas bukan penasihat investasi, penerbit produk keuangan, atau pegadaian'
+  - category: STATUS
+    words: [resmi, berizin, terdaftar, bersertifikat, terakreditasi, diawasi, berlisensi]
+    pattern: '(?i)\b(resmi|berizin|terdaftar|bersertifikat|terakreditasi|diawasi|berlisensi)\b'
+    reason: 'Klaim status hukum atau izin hanya boleh dipakai setelah terbukti dan disetujui CEO'
+  - category: INSTITUSI
+    words: [Antam, Pegadaian, Bank Indonesia, OJK, Bappebti, bursa berjangka]
+    pattern: '(?i)\b(antam|pegadaian|bank indonesia|ojk|bappebti|bursa berjangka)\b'
+    reason: 'Menyebut atau menyiratkan hubungan dengan institusi lain tanpa izin'

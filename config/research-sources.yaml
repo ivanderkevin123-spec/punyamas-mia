@@ -1,0 +1,19 @@
+# Research sources for MIA. The workspace is read-only; web fetching is NOT available in Phase 2.
+workspace:
+  root: ~/Documents/bots/punyamas
+  assets:
+    - { key: context,      path: CONTEXT.md }
+    - { key: decisions,    path: DECISIONS.md }
+    - { key: open_questions, path: OPEN-QUESTIONS.md }
+    - { key: b1,           path: docs/02-brand/B1-arah-dan-strategi-merek.md }
+    - { key: facts,        path: docs/02-brand/B4-fakta.json }
+    - { key: brand_oracle, path: tools/spec-oracle/brand-oracle.mjs }
+    - { key: m1,           path: docs/05-marketing/M1-rencana-pra-peluncuran.md }
+    - { key: w1,           path: docs/05-marketing/W1-naskah-situs-company-profile.md }
+web:
+  enabled: false      # must stay false in Phase 2; enabling requires the approval checklist (docs/architecture/integrations.md §4)
+  allow: []           # filled only after per-host approval
+  block: ["*/login*", "*/checkout*", "*/account*", "*/cart*"]
+  defaults: { max_requests_per_hour: 60, max_pages_per_run: 20, request_interval_s: 10, max_bytes: 2000000 }
+imports:
+  max_file_bytes: 5000000

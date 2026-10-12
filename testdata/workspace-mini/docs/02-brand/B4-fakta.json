@@ -1,0 +1,22 @@
+{
+  "versi": "v0.1",
+  "catatan": "Satu-satunya sumber fakta untuk company profile (B4). Fakta berstatus RENCANA belum terjadi dan harus ditulis dalam bahasa rencana (akan, dalam persiapan, kami berencana). Apa pun yang tidak ada di sini harus ditulis sebagai isian [ISI: ...], bukan dikarang.",
+  "fakta": [
+    { "id": "FB1", "teks": "Punyamas adalah usaha pembelian emas dan perak di Surabaya, Jawa Timur. Usaha dalam persiapan dan belum beroperasi.", "status": "RENCANA", "sumber": "CONTEXT.md; DECISIONS.md D-016" },
+    { "id": "FB2", "teks": "Barang yang dibeli: perhiasan emas bekas atau patah, logam mulia (emas batangan), dan perak. Berlian dan permata tidak termasuk untuk saat ini.", "status": "RENCANA", "sumber": "DECISIONS.md D-002" },
+    { "id": "FB3", "teks": "Punyamas berencana menjual kepada pabrikan, pengepul atau pedagang, dan konsumen akhir.", "status": "RENCANA", "sumber": "DECISIONS.md D-011" },
+    { "id": "FB4", "teks": "Bentuk badan usaha yang dipilih adalah perseroan terbatas (PT). PT belum berdiri dan nama PT belum ditentukan.", "status": "RENCANA", "sumber": "DECISIONS.md D-008; OPEN-QUESTIONS.md Q6" },
+    { "id": "FB5", "teks": "Setiap transaksi, pembelian maupun penjualan, berapa pun nilainya, dicatat dengan identitas. Foto wajah bersifat opsional.", "status": "KEBIJAKAN", "sumber": "DECISIONS.md D-013, D-014" },
+    { "id": "FB6", "teks": "Punyamas berencana dikukuhkan sebagai Pengusaha Kena Pajak (PKP) sebelum penjualan pertama.", "status": "RENCANA", "sumber": "DECISIONS.md D-012" },
+    { "id": "FB7", "teks": "Barang customer ditimbang dan diuji di depan customer; barang bernilai lebih tinggi diuji dengan lebih dari satu metode; hasil uji yang belum konsisten dijelaskan dan barang dapat dibawa pulang.", "status": "KEBIJAKAN", "sumber": "docs/01-foundation/08-sop-pembelian-dan-pengujian.md bagian 7, 9, 13" },
+    { "id": "FB8", "teks": "Harga beli dihitung dengan rumus yang dapat dijelaskan: berat bersih, kadar, pengurang alat, dan harga per gram murni ditampilkan; penawaran berlaku 10 menit.", "status": "KEBIJAKAN", "sumber": "docs/01-foundation/05-spesifikasi-aturan-harga.md bagian 7 dan 10" },
+    { "id": "FB9", "teks": "Pembayaran dilakukan ke rekening atas nama customer; batas pembayaran tunai ditetapkan kemudian.", "status": "KEBIJAKAN", "sumber": "docs/01-foundation/02-sop-kyc-dan-red-flag.md P6" },
+    { "id": "FB10", "teks": "Pembukuan dan dokumen pendukung disimpan 10 tahun di Indonesia.", "status": "KEBIJAKAN", "sumber": "docs/01-foundation/03-kewajiban-pajak-dan-pelaporan.md P18" },
+    { "id": "FB11", "teks": "Data pribadi diperlakukan sesuai kebijakan pelindungan data dan retensi yang tertulis; dokumen identitas customer tidak disimpan di dokumen kerja umum.", "status": "KEBIJAKAN", "sumber": "docs/01-foundation/04-kebijakan-data-pribadi-dan-retensi.md" },
+    { "id": "FB12", "teks": "Punyamas termasuk pihak yang berkewajiban melakukan pengenalan pengguna jasa dan pelaporan sesuai ketentuan pencegahan pencucian uang; kebijakan dan prosedurnya sudah disusun.", "status": "KEBIJAKAN", "sumber": "docs/01-foundation/02-sop-kyc-dan-red-flag.md" },
+    { "id": "FB13", "teks": "Pembeli bisnis dikualifikasi sebelum penjualan, dan syarat penentuan kadar dan berat serta pembayaran disepakati tertulis.", "status": "KEBIJAKAN", "sumber": "docs/01-foundation/09-sop-penjualan-dan-kualifikasi-pembeli.md bagian 6, 9, 11" },
+    { "id": "FB14", "teks": "Empat pilar merek: terlihat, jelas, tertib, dan tenang.", "status": "KEBIJAKAN", "sumber": "docs/02-brand/B1-arah-dan-strategi-merek.md bagian 6" }
+  ],
+  "angka_boleh": ["10"],
+  "isian_wajib": ["nama PT", "alamat kantor dan toko", "NIB", "NPWP", "direksi dan komisaris", "kontak (telepon dan email)", "tanggal pendirian", "bank rekening operasional"]
+}

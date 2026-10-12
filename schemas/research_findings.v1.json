@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "research_findings.v1",
+  "title": "Market Research Agent output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["findings"],
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "title", "statement", "evidence_refs"],
+        "properties": {
+          "kind": { "enum": ["fact", "interpretation", "hypothesis"] },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "statement": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "topic_key": { "type": "string", "maxLength": 80 },
+          "rationale": { "type": "string", "maxLength": 1000 },
+          "evidence_refs": { "type": "array", "maxItems": 20, "items": { "type": "string" } }
+        }
+      }
+    },
+    "notes": { "type": "string", "maxLength": 1000 }
+  },
+  "x-semantic-rules": [
+    "fact: at least one evidence_ref must point to a source-backed fact item",
+    "interpretation: at least one evidence_ref",
+    "every evidence_ref must exist among the items given in the untrusted-data block"
+  ]
+}

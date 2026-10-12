@@ -1,0 +1,37 @@
+{
+  "findings": [
+    {
+      "kind": "interpretation",
+      "title": "Transparansi penimbangan adalah titik pembeda yang terlihat di lapangan",
+      "statement": "Pengamatan contoh menunjukkan ada toko yang menimbang di luar pandangan pembeli, sementara artikel edukasi contoh menyarankan penimbangan di depan penjual; kejelasan proses tampak menjadi kebutuhan yang belum selalu dipenuhi.",
+      "topic_key": "transparansi_penimbangan",
+      "rationale": "Catatan lapangan contoh B mencatat penimbangan di ruang belakang; artikel edukasi contoh menyarankan penimbangan di depan penjual.",
+      "evidence_refs": ["catatan-lapangan-contoh.md#2", "artikel-edukasi-contoh.json#1"]
+    },
+    {
+      "kind": "interpretation",
+      "title": "Slogan harga superlatif dipakai pesaing contoh",
+      "statement": "Toko contoh A memakai slogan harga superlatif pada papan; Punyamas tidak boleh menirunya karena kategori SUPERLATIF dilarang, dan dapat menonjolkan dasar hitung sebagai gantinya.",
+      "topic_key": "praktik_harga_pesaing",
+      "rationale": "Catatan lapangan contoh A mencatat slogan pada papan; kebijakan merek melarang superlatif.",
+      "evidence_refs": ["catatan-lapangan-contoh.md#1"]
+    },
+    {
+      "kind": "hypothesis",
+      "title": "Pertanyaan tentang KTP berulang sebelum transaksi",
+      "statement": "Kebutuhan identitas tampaknya menjadi pertanyaan yang berulang dari calon penjual; penjelasan singkat tentang alasan pencatatan identitas mungkin mengurangi keraguan.",
+      "topic_key": "pertanyaan_identitas",
+      "rationale": "Dua pengunjung dalam satu jam pengamatan contoh menanyakan KTP; FAQ internal juga memuat pertanyaan ini.",
+      "evidence_refs": ["catatan-lapangan-contoh.md#3", "workspace:w1#3"]
+    },
+    {
+      "kind": "fact",
+      "title": "Temuan yang sengaja tidak valid (menguji penolakan)",
+      "statement": "Pernyataan ini mengaku fakta tetapi hanya mengutip hipotesis.",
+      "topic_key": "uji_validasi",
+      "rationale": "Fixture ini memastikan validator menolak fakta tanpa butir fakta bersumber.",
+      "evidence_refs": ["pertanyaan-pelanggan-contoh.csv#2"]
+    }
+  ],
+  "notes": "Keluaran mock deterministik untuk testdata/sample-batch."
+}

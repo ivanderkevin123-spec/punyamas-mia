@@ -1,0 +1,29 @@
+# Provider selection, execution limits and the verified price table.
+provider:
+  name: mock           # only "mock" is available in Phase 2 (no paid calls)
+  model: mock          # price table entry (USD 0)
+  mock:
+    fixtures_dir: testdata/fixtures
+    fixture_key: ""    # default: name of the inputs directory
+limits:
+  monthly_ceiling_usd: 20     # HARD ceiling (approved); enforced before every provider call
+  run_ceiling_usd: 2
+  agent_ceiling_usd: 1
+  warn_at_fraction: 0.8
+  max_retries: 2
+  max_calls_per_step: 2       # one call plus one bounded repair attempt
+  max_input_tokens: 150000
+  max_output_tokens: 8000
+  concurrency: 1
+  stale_after_s: 600
+  step_timeout_s: { default: 60, import: 60, workspace: 60, dedup: 30, research_agent: 120, validate: 30, report: 30 }
+drift:
+  block_runs: false           # true = stop runs while a workspace asset change is unreviewed
+price_table:
+  verified_at: "2026-10-12"
+  source: "https://platform.claude.com/docs/en/about-claude/pricing"
+  models:
+    mock:               { input_per_mtok: 0,    cache_read_per_mtok: 0,    output_per_mtok: 0 }
+    claude-opus-5-5:    { input_per_mtok: 4,    cache_read_per_mtok: 0.20, output_per_mtok: 20 }
+    claude-sonnet-5-5:  { input_per_mtok: 2,    cache_read_per_mtok: 0.10, output_per_mtok: 10 }
+    claude-haiku-5-5:   { input_per_mtok: 0.10, cache_read_per_mtok: 0.01, output_per_mtok: 0.50 }

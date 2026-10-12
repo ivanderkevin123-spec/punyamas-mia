@@ -1,0 +1,4 @@
+source_name,reference,retrieved_at,kind,title,statement,excerpt,quality,topic_key,source_type
+"CONTOH — daftar pertanyaan fiktif (pengujian)","imports/sample/pertanyaan-pelanggan-contoh.csv",2026-10-11,hypothesis,"Pertanyaan: berapa lama proses penjualan","Calon penjual ingin tahu berapa lama proses dari datang sampai pembayaran selesai.","",D,durasi_proses,manual_note
+"CONTOH — daftar pertanyaan fiktif (pengujian)","imports/sample/pertanyaan-pelanggan-contoh.csv",2026-10-11,hypothesis,"Pertanyaan: apakah perhiasan patah masih dibeli","Calon penjual ragu apakah perhiasan yang patah atau tanpa surat masih bisa dijual.","",D,barang_patah,manual_note
+"CONTOH — daftar pertanyaan fiktif (pengujian)","imports/sample/pertanyaan-pelanggan-contoh.csv",2026-10-11,hypothesis,"Pertanyaan: bagaimana kadar ditentukan","Calon penjual tidak memahami bagaimana kadar emas diuji dan siapa yang menentukannya.","",D,penentuan_kadar,manual_note

@@ -1,0 +1,28 @@
+# Secrets and local environment (never commit)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+
+# Local data, reports and caches produced by MIA (reviewed before any commit)
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+reports/
+drafts/
+imports/private/
+.toolchain/
+bin/
+*.log
+
+# Customer personal data must never enter this repository
+private/
+customer-data/
+
+# OS and editor noise
+.DS_Store
+
+# Claude Code session files (local only)
+.claude/

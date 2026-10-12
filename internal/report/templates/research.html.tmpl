@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} — {{.RunID}}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#1B2F4A;line-height:1.5}
+h1,h2,h3{color:#1B2F4A} h1{border-bottom:3px solid #B59864;padding-bottom:.3rem}
+table{border-collapse:collapse;width:100%;margin:.5rem 0;font-size:.95rem} th,td{border:1px solid #d9d4c7;padding:.35rem .5rem;text-align:left;vertical-align:top} th{background:#f5f1e8}
+code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px}
+.fail{background:#fde8e8;border:2px solid #b00020;padding:.75rem;font-weight:bold}
+.warn{background:#fff6dd;border-left:4px solid #B59864;padding:.5rem .75rem;margin:.5rem 0}
+.item{border:1px solid #d9d4c7;border-radius:6px;padding:.6rem .9rem;margin:.6rem 0}
+.tag{display:inline-block;background:#786647;color:#fff;border-radius:3px;padding:0 .4rem;font-size:.8rem;margin-right:.3rem}
+.muted{color:#666;font-size:.9rem}
+</style>
+</head>
+<body>
+<h1>{{.Title}} — {{.BrandName}}</h1>
+{{if .Failed}}<div class="fail">RUN GAGAL / TIDAK LENGKAP. Laporan ini tidak boleh dibaca sebagai hasil riset yang selesai.</div>{{end}}
+<table><tr><th>Run</th><th>Status</th><th>Dibuat (UTC)</th><th>Selesai (UTC)</th><th>Penyedia AI</th><th>Masukan</th><th>Konfigurasi</th></tr>
+<tr><td><code>{{.RunID}}</code></td><td><strong>{{.StatusLabel}}</strong></td><td>{{.CreatedAt}}</td><td>{{.FinishedAt}}</td><td>{{.Provider}}</td><td><code>{{.Inputs}}</code></td><td><code>{{.ConfigHash}}</code></td></tr></table>
+<p>Semua temuan berstatus <strong>draf untuk ditinjau manusia</strong>. Fakta bersumber, interpretasi model, dan hipotesis dipisahkan.</p>
+
+<h2>1. Ringkasan eksekutif</h2>
+<ul>
+<li>Sumber: {{.Counts.Sources}} · Butir diimpor: {{.Counts.ItemsImported}} (dipakai ulang: {{.Counts.ItemsReused}}) · Duplikat: {{.Counts.Duplicates}} · Mencurigakan: {{.Counts.Suspicious}}</li>
+<li>Fakta bersumber: {{.Counts.Facts}} · Interpretasi model: {{.Counts.Interpretations}} · Hipotesis: {{.Counts.Hypotheses}} · Ditolak validasi: {{.Counts.Rejected}}</li>
+<li>Temuan agen: {{.Counts.AgentFindings}} diterima, {{.Counts.AgentRejected}} ditolak · Tanda klaim terlarang: {{.Counts.ClaimFlags}}</li>
+<li>Biaya: {{.CostTotal}}{{if not .CostMeasurable}} (<strong>tidak dapat diukur sepenuhnya; estimasi</strong>){{end}} · Plafon bulanan: {{.MonthlyCeiling}}</li>
+</ul>
+
+<h2>2. Status langkah</h2>
+<table><tr><th>Langkah</th><th>Status</th><th>Percobaan</th><th>Catatan</th></tr>
+{{range .Steps}}<tr><td>{{.Name}}</td><td>{{.Status}}</td><td>{{.Attempts}}</td><td>{{.Error}}</td></tr>{{end}}</table>
+{{if .Errors}}<h3>Kesalahan</h3><ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{if .Warnings}}<h3>Peringatan</h3>{{range .Warnings}}<div class="warn">{{.}}</div>{{end}}{{end}}
+
+<h2>3. Fakta bersumber ({{len .Facts}})</h2>
+{{if not .Facts}}<p class="muted">Tidak ada fakta bersumber pada run ini.</p>{{end}}
+{{range .Facts}}<div class="item"><span class="tag">fakta</span><span class="tag">kualitas {{.Quality}}</span><strong>[{{.Ref}}] {{.Title}}</strong>
+<p>{{.Statement}}</p>
+{{if .Source}}<p class="muted">Sumber: {{.Source.Name}} — <code>{{.Source.Reference}}</code> (diambil {{.Source.RetrievedAt}}{{if .Source.PublishedAt}}, terbit {{.Source.PublishedAt}}{{end}}){{if .Locator}} · {{.Locator}}{{end}}</p>{{end}}
+{{if .Excerpt}}<blockquote>{{.Excerpt}}</blockquote>{{end}}
+{{if .Claims}}<p class="warn">Tanda klaim terlarang (jangan dipakai dalam konten Punyamas): {{range $i, $c := .Claims}}{{if $i}}; {{end}}{{$c}}{{end}}</p>{{end}}
+</div>{{end}}
+
+<h2>4. Interpretasi model ({{len .Interps}})</h2>
+{{if not .Interps}}<p class="muted">Tidak ada interpretasi.</p>{{end}}
+{{range .Interps}}<div class="item"><span class="tag">interpretasi</span><span class="tag">bukti terlemah {{.Quality}}</span><strong>[{{.Ref}}] {{.Title}}</strong>
+<p>{{.Statement}}</p>
+<p class="muted">Alasan (menurut model): {{.Rationale}}</p>
+<p class="muted">Mengutip: {{range $i, $c := .Cites}}{{if $i}}, {{end}}<code>{{$c}}</code>{{end}}</p>
+{{if .Claims}}<p class="warn">Tanda klaim terlarang: {{range $i, $c := .Claims}}{{if $i}}; {{end}}{{$c}}{{end}}</p>{{end}}
+</div>{{end}}
+
+<h2>5. Hipotesis ({{len .Hyps}})</h2>
+{{if not .Hyps}}<p class="muted">Tidak ada hipotesis.</p>{{end}}
+<ul>{{range .Hyps}}<li><strong>[{{.Ref}}] {{.Title}}</strong> — {{.Statement}}{{if .Cites}} (mengutip {{range $i, $c := .Cites}}{{if $i}}, {{end}}<code>{{$c}}</code>{{end}}){{end}}{{if .Source}} · sumber internal: <code>{{.Source.Reference}}</code>{{end}}</li>{{end}}</ul>
+
+<h2>6. Sumber ({{len .Sources}})</h2>
+<table><tr><th>Nama</th><th>Referensi</th><th>Jenis</th><th>Diambil</th><th>Terbit</th></tr>
+{{range .Sources}}<tr><td>{{.Name}}</td><td><code>{{.Reference}}</code></td><td>{{.Type}}</td><td>{{.RetrievedAt}}</td><td>{{.PublishedAt}}</td></tr>{{end}}</table>
+
+<h2>7. Ditolak validasi, duplikat, dan konten mencurigakan</h2>
+{{if .Rejected}}<h3>Ditolak ({{len .Rejected}})</h3><ul>{{range .Rejected}}<li><strong>[{{.Ref}}] {{.Title}}</strong> ({{.Kind}}): {{range $i, $e := .Errors}}{{if $i}}; {{end}}{{$e}}{{end}}</li>{{end}}</ul>{{end}}
+{{if .Dups}}<h3>Duplikat ({{len .Dups}})</h3><ul>{{range .Dups}}<li>[{{.Ref}}] {{.Title}} → duplikat dari <code>{{.DuplicateOf}}</code></li>{{end}}</ul>{{end}}
+{{if .Susp}}<h3>Konten mencurigakan — dikecualikan ({{len .Susp}})</h3><ul>{{range .Susp}}<li>[{{.Ref}}] {{.Title}}</li>{{end}}</ul>{{end}}
+{{if and (not .Rejected) (not .Dups) (not .Susp)}}<p class="muted">Tidak ada.</p>{{end}}
+
+<h2>8. Aset ruang kerja Punyamas (baca-saja)</h2>
+{{if not .Drift}}<p class="muted">Tidak diperiksa pada run ini.</p>{{end}}
+<ul>{{range .Drift}}<li><strong>{{.Key}}</strong> (<code>{{.Path}}</code>): {{.Status}}{{if .Details}}<ul>{{range .Details}}<li>{{.}}</li>{{end}}</ul>{{end}}</li>{{end}}</ul>
+
+<h2>9. Eksekusi agen dan biaya</h2>
+<table><tr><th>Eksekusi</th><th>Agen</th><th>Penyedia</th><th>Model</th><th>Hasil</th><th>Token masuk</th><th>Token keluar</th><th>Biaya</th></tr>
+{{range .Execs}}<tr><td><code>{{.ID}}</code></td><td>{{.Agent}}</td><td>{{.Provider}}</td><td>{{.Model}}</td><td>{{.Outcome}}</td><td>{{.InputTokens}}</td><td>{{.OutputTokens}}</td><td>{{.Cost}}</td></tr>{{end}}
+{{if not .Execs}}<tr><td colspan="8">tidak ada panggilan</td></tr>{{end}}</table>
+<p>Total biaya run: <strong>{{.CostTotal}}</strong>{{if not .CostMeasurable}} — biaya tidak dapat diukur sepenuhnya; estimasi digunakan{{end}}.</p>
+
+<h2>10. Asumsi dan ketidakpastian</h2>
+<ul><li>Kualitas bukti: A = sumber primer bertanggal yang diamati langsung; B = sumber sekunder kredibel; C = anekdot/forum/tidak terverifikasi; D = tanpa bukti eksternal.</li>
+<li>Interpretasi dibuat oleh model dari butir yang dikutip; ia bukan fakta dan belum ditinjau manusia.</li>
+<li>Pemeriksa klaim hanya menyaring kata dan frasa; ia tidak menilai makna.</li></ul>
+
+<h2>11. Langkah berikutnya</h2>
+<ul>{{range .NextSteps}}<li>{{.}}</li>{{end}}</ul>
+<p class="muted">Dibuat {{.Generated}} oleh MIA (mode {{.Provider}}). Laporan dirender dari rekaman yang tervalidasi, bukan dari teks mentah model.</p>
+</body>
+</html>
