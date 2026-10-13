@@ -1,0 +1,103 @@
+{{define "opp"}}
+### [{{cell .Tier}}] {{text .Title}} — `{{code .ID}}`
+
+- **Status:** {{cell .StatusLabel}}{{if .LatestDecision}} · keputusan terakhir: {{cell .LatestDecision}}{{end}} · **Segmen:** {{cell .Segment}}{{if .TopicKey}} · **Topik:** `{{code .TopicKey}}`{{end}}
+- **Tingkat:** {{cell .Tier}} · **Jumlah ordinal:** {{.OrdinalSum}}/15 (jumlah ordinal, bukan probabilitas){{if .Hypothesis}} · **HIPOTESIS** (tanpa fakta A/B){{end}}{{if .RequiresStore}} · **MEMERLUKAN KONFIRMASI OPERASIONAL/TOKO**{{end}}{{if .MergedFrom}} · menggabungkan usulan {{range $i, $m := .MergedFrom}}{{if $i}}, {{end}}#{{$m}}{{end}}{{end}}
+- **Kebutuhan pelanggan:** {{text .Need}}
+- **Interpretasi strategis (bukan fakta):** {{text .Interpretation}}
+- **Fakta pendukung (ID bukti):**{{if not .Brief.Facts}} tidak ada{{end}}
+{{range .Brief.Facts}}  - `{{code .ID}}` [{{code .Ref}}] kualitas {{.Quality}} — {{text .Statement}} (sumber: {{text .SourceName}})
+{{end}}{{if .Brief.Interpretations}}- **Interpretasi riset yang dikutip:**
+{{range .Brief.Interpretations}}  - `{{code .ID}}` [{{code .Ref}}] — {{text .Statement}}
+{{end}}{{end}}{{if .Brief.Hypotheses}}- **Hipotesis yang dikutip:**
+{{range .Brief.Hypotheses}}  - `{{code .ID}}` [{{code .Ref}}] — {{text .Statement}}
+{{end}}{{end}}- **Penilaian:** {{range $i, $d := .Dims}}{{if $i}} · {{end}}{{text $d.Label}} {{$d.Value}} ({{cell $d.Source}}){{end}}
+{{range .Caps}}- **Batas tingkat:** {{text .Gate}} — {{text .Reason}}
+{{end}}{{range .Gates}}{{if .Details}}- Gerbang {{cell .Gate}}{{if .Passed}} (lolos){{else}} (catatan){{end}}: {{range $i, $x := .Details}}{{if $i}}; {{end}}{{text $x}}{{end}}
+{{end}}{{end}}{{range .Conflicts}}- **Konflik bukti `{{code .Group}}` — kedua sisi:**
+{{range .Sides}}  - {{if .Cited}}(dikutip) {{end}}`{{code .ID}}` [{{code .Ref}}] {{text .Statement}} — {{text .SourceName}}
+{{end}}{{end}}- **Pesan (bahasa niat):** {{text .Brief.Message}}
+- **Konsep penawaran:** {{text .Brief.OfferConcept}} · **Kanal:** {{text .Brief.Channel}}
+- **Uji:** {{text .Brief.TestDesign}} · **Metrik:** {{cell .Brief.SuccessMetric}} · **Kriteria:** {{text .Brief.SuccessCriteria}}
+- **Sumber daya:** {{text .Brief.Resources}} · **Upaya:** {{cell .Brief.Effort}}
+{{range .Brief.Risks}}- Risiko: {{text .}}
+{{end}}{{range .Brief.Assumptions}}- Asumsi: {{text .}}
+{{end}}{{range .Brief.MissingEvidence}}- Bukti yang kurang: {{text .}}
+{{end}}{{range .Brief.Dependencies}}- Ketergantungan: {{text .}}
+{{end}}- **Tindakan berikutnya:** {{text .Brief.NextAction}}
+{{if .RejectReasons}}- **Alasan penolakan/blokir:** {{range $i, $x := .RejectReasons}}{{if $i}}; {{end}}{{text $x}}{{end}}
+{{end}}{{if .Approvals}}- **Riwayat keputusan (hanya-tambah):** {{range $i, $a := .Approvals}}{{if $i}}; {{end}}{{cell $a.At}} {{cell $a.Decision}} oleh {{text $a.By}}{{if $a.Note}} ({{text $a.Note}}){{end}}{{end}}
+{{end}}{{end}}# {{text .Title}} — {{text .BrandName}}
+{{if .Failed}}
+> **RUN GAGAL / TIDAK LENGKAP.** Laporan ini tidak boleh dibaca sebagai hasil strategi yang selesai. Langkah yang gagal tercantum di bagian Status.
+{{else if .Incomplete}}
+> **RUN BELUM LENGKAP.** Tidak semua langkah dijalankan.
+{{end}}
+| Run strategi | Run riset (bukti) | Status | Dibuat (UTC) | Selesai (UTC) | Penyedia AI | Konfigurasi | Aturan skor | Fixture |
+|---|---|---|---|---|---|---|---|---|
+| `{{code .RunID}}` | `{{code .ParentRunID}}` | **{{cell .StatusLabel}}** | {{cell .CreatedAt}} | {{cell .FinishedAt}} | {{cell .Provider}} | `{{code .ConfigHash}}` | `{{code .ScoringHash}}` | `{{code .FixtureHash}}` |
+
+Semua peluang di bawah adalah **usulan** yang menunggu tinjauan manusia; tidak ada yang disetujui otomatis. Fakta bersumber, interpretasi strategis, dan rekomendasi dipisahkan. Tingkat dihitung ulang oleh kode dari bukti tervalidasi; nilai dimensi adalah ordinal 0–3.
+
+## 1. Ringkasan
+
+- Bukti tervalidasi tersedia: {{.Counts.EvidenceItems}} butir · kelompok konflik: {{.Counts.ConflictGroups}}
+- Usulan agen: {{.Counts.Proposed}} · digabung (duplikat): {{.Counts.Merged}} · dievaluasi: {{.Counts.Evaluated}}
+- Tingkat A: {{.Counts.TierA}} · Tingkat B: {{.Counts.TierB}} · Tingkat C: {{.Counts.TierC}} · diblokir (merek): {{.Counts.Blocked}} · ditolak (bukti/klaim): {{.Counts.Rejected}}
+- Hipotesis: {{.Counts.Hypotheses}} · bukti berkonflik: {{.Counts.Conflicted}} · memerlukan toko/operasional: {{.Counts.StoreDependent}}
+- Biaya: {{.CostTotal}} (aktual {{.CostActual}}, estimasi tidak pasti {{.CostUncertain}}){{if not .CostMeasurable}} — **biaya tidak dapat diukur sepenuhnya**{{end}} · Plafon bulanan: {{.MonthlyCeiling}}
+
+## 2. Status langkah
+
+| Langkah | Status | Percobaan | Catatan |
+|---|---|---|---|
+{{range .Steps}}| {{cell .Name}} | {{cell .Status}} | {{.Attempts}} | {{cell .Error}} |
+{{end}}
+{{if .Errors}}### Kesalahan
+{{range .Errors}}- {{text .}}
+{{end}}{{end}}
+{{if .Warnings}}### Peringatan
+{{range .Warnings}}- {{text .}}
+{{end}}{{end}}
+## 3. Tingkat A ({{len .TierA}})
+{{if not .TierA}}
+_Tidak ada._
+{{end}}{{range .TierA}}{{template "opp" .}}{{end}}
+## 4. Tingkat B ({{len .TierB}})
+{{if not .TierB}}
+_Tidak ada._
+{{end}}{{range .TierB}}{{template "opp" .}}{{end}}
+## 5. Tingkat C — hipotesis, konflik, atau bukti lemah ({{len .TierC}})
+{{if not .TierC}}
+_Tidak ada._
+{{end}}{{range .TierC}}{{template "opp" .}}{{end}}
+## 6. Diblokir pemeriksa teks merek ({{len .Blocked}})
+{{if not .Blocked}}
+_Tidak ada._
+{{end}}{{range .Blocked}}{{template "opp" .}}{{end}}
+## 7. Ditolak gerbang bukti atau klaim faktual ({{len .Rejected}})
+{{if not .Rejected}}
+_Tidak ada._
+{{end}}{{range .Rejected}}{{template "opp" .}}{{end}}
+## 8. Eksekusi agen dan biaya
+
+| Eksekusi | Agen | Penyedia | Model | Hasil | Token masuk | Token keluar | Biaya |
+|---|---|---|---|---|---|---|---|
+{{range .Execs}}| `{{code .ID}}` | {{cell .Agent}} | {{cell .Provider}} | {{cell .Model}} | {{cell .Outcome}} | {{.InputTokens}} | {{.OutputTokens}} | {{cell .Cost}} |
+{{end}}{{if not .Execs}}| — | — | — | — | tidak ada panggilan | 0 | 0 | USD 0.0000 |
+{{end}}
+## 9. Aturan yang diterapkan kode
+
+- Gerbang 1 bukti: setiap ID yang dikutip harus ada dan tervalidasi; tanpa fakta A/B → hipotesis, tingkat maksimal C.
+- Gerbang 2 konflik: bukti dalam kelompok konflik ditampilkan kedua sisinya; tingkat maksimal C sampai diselesaikan.
+- Gerbang 3 merek dan klaim: gagal pemeriksa teks merek → diblokir; harga, jam buka, alamat, jaminan, statistik, klaim pelanggan, atau angka tanpa dukungan bukti → ditolak.
+- Gerbang 4 operasional: peluang yang memerlukan toko, staf, atau kapabilitas belum terverifikasi diberi label; tidak dianggap fakta.
+- Gerbang 5 duplikat: topik sama dan bukti bersama ≥ 50% atau judul mirip ≥ 0,8 → digabung; bukti pendukung dipertahankan.
+- Tingkat A: bukti ≥ 2, niat ≥ 2, kesesuaian ≥ 2, tanpa batas; Tingkat B: bukti ≥ 1, kesesuaian ≥ 2, tanpa batas C; selainnya C. Kekuatan bukti dihitung kode; nilai agen lain dibatasi kode.
+
+## 10. Langkah berikutnya
+{{range .NextSteps}}
+- {{text .}}{{end}}
+
+---
+_Dibuat {{.Generated}} oleh MIA (mode {{cell .Provider}}). Laporan dirender dari rekaman tersimpan; jejak: konfigurasi `{{code .ConfigHash}}`, aturan skor `{{code .ScoringHash}}`, fixture `{{code .FixtureHash}}`._

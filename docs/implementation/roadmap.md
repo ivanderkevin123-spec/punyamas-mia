@@ -1,6 +1,6 @@
 # MIA — Implementation Roadmap
 
-**Status:** Phase 1 · 2026-10-12. Phases 2–7 are **not started** and each requires its own approval. Costs are external USD costs; the monthly ceiling is USD 20.
+**Status:** Phase 3 implemented 2026-10-13 (uncommitted, awaiting approval); Phases 4–7 are **not started** and each requires its own approval. Costs are external USD costs; the monthly ceiling is USD 20.
 
 ## 0. Ringkasan (Bahasa Indonesia)
 
@@ -35,7 +35,9 @@ Artifacts: 11 documents under `docs/product`, `docs/architecture`, `docs/impleme
 | Cost | USD 0 (mock only) |
 | Approval gate | Phase 2 report with test output, `make go-version` output, workspace-unchanged check, dependency list as installed; owner approves Phase 3 |
 
-## Phase 3 — Research and Strategy agents with approved sources
+## Phase 3 — Research and Strategy agents with approved sources (Strategy Agent implemented 2026-10-13; see `phase3-report.md`)
+
+Delivered: Strategy Agent over validated research items (`internal/agent/strategy`, `internal/strategy`), five code gates, ordinal scoring and tiers from `config/scoring.yaml`, conflict detection, opportunities and briefs in SQLite with config/scoring/fixture hashes, append-only approvals, strategy report and exportable brief, CLI commands `run strategy`, `opportunities`, `approve opportunity`, `export brief`. Not delivered, by decision: live fetching, Google Trends importer, Anthropic adapter (mock only; no new dependencies). The Research Agent plumbing and the claim-checker port were already delivered in Phase 2. Original plan for reference:
 
 | Field | Content |
 |---|---|

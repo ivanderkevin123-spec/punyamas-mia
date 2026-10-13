@@ -477,3 +477,150 @@ func (s *Store) UpdateCost(ctx context.Context, c *domain.CostRecord) error {
 	}
 	return nil
 }
+
+// ---- Phase 3: opportunities ----
+
+const oppCols = `id, run_id, parent_run_id, proposal_index, title, segment, topic_key, need, interpretation, status, tier, hypothesis, requires_store, dimensions_json, ordinal_sum, caps_json, gates_json, conflicts_json, brief_json, merged_from_json, reject_reasons_json, config_hash, scoring_config_hash, fixture_hash, agent_execution_id, created_at`
+
+func scanOpp(sc interface{ Scan(...any) error }) (*domain.Opportunity, error) {
+	var o domain.Opportunity
+	var topic, caps, conflicts, merged, rej, fixture, exec sql.NullString
+	var hyp, store int
+	if err := sc.Scan(&o.ID, &o.RunID, &o.ParentRunID, &o.ProposalIndex, &o.Title, &o.Segment, &topic, &o.Need, &o.Interpretation, &o.Status, &o.Tier, &hyp, &store, &o.DimensionsJSON, &o.OrdinalSum, &caps, &o.GatesJSON, &conflicts, &o.BriefJSON, &merged, &rej, &o.ConfigHash, &o.ScoringConfigHash, &fixture, &exec, &o.CreatedAt); err != nil {
+		return nil, err
+	}
+	o.TopicKey, o.CapsJSON, o.ConflictsJSON, o.MergedFromJSON, o.RejectReasonsJSON, o.FixtureHash, o.AgentExecutionID = str(topic), str(caps), str(conflicts), str(merged), str(rej), str(fixture), str(exec)
+	o.Hypothesis, o.RequiresStore = hyp == 1, store == 1
+	return &o, nil
+}
+
+// InsertOpportunity stores an opportunity and its evidence links in one transaction.
+func (s *Store) InsertOpportunity(ctx context.Context, o *domain.Opportunity, links []domain.OpportunityEvidence) error {
+	return s.Tx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO opportunities(`+oppCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			o.ID, o.RunID, o.ParentRunID, o.ProposalIndex, o.Title, o.Segment, nz(o.TopicKey), o.Need, o.Interpretation, o.Status, o.Tier, b2i(o.Hypothesis), b2i(o.RequiresStore),
+			o.DimensionsJSON, o.OrdinalSum, nz(o.CapsJSON), o.GatesJSON, nz(o.ConflictsJSON), o.BriefJSON, nz(o.MergedFromJSON), nz(o.RejectReasonsJSON), o.ConfigHash, o.ScoringConfigHash, nz(o.FixtureHash), nz(o.AgentExecutionID), o.CreatedAt); err != nil {
+			return fmt.Errorf("opportunity %s: %w", o.Title, err)
+		}
+		for _, l := range links {
+			if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO opportunity_evidence(opportunity_id, item_id, role) VALUES (?,?,?)`, o.ID, l.ItemID, l.Role); err != nil {
+				return fmt.Errorf("opportunity evidence %s: %w", l.ItemID, err)
+			}
+		}
+		return nil
+	})
+}
+
+func (s *Store) OpportunitiesForRun(ctx context.Context, runID string) ([]*domain.Opportunity, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT `+oppCols+` FROM opportunities WHERE run_id=? ORDER BY proposal_index, id`, runID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*domain.Opportunity
+	for rows.Next() {
+		o, err := scanOpp(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, o)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) GetOpportunity(ctx context.Context, id string) (*domain.Opportunity, error) {
+	o, err := scanOpp(s.db.QueryRowContext(ctx, `SELECT `+oppCols+` FROM opportunities WHERE id=?`, id))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	return o, err
+}
+
+// UpdateOpportunityStatus mirrors the latest review decision; history stays in approval_records.
+func (s *Store) UpdateOpportunityStatus(ctx context.Context, id, status string) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE opportunities SET status=? WHERE id=?`, status, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (s *Store) EvidenceForOpportunity(ctx context.Context, oppID string) ([]domain.OpportunityEvidence, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT opportunity_id, item_id, role FROM opportunity_evidence WHERE opportunity_id=? ORDER BY item_id`, oppID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.OpportunityEvidence
+	for rows.Next() {
+		var e domain.OpportunityEvidence
+		if err := rows.Scan(&e.OpportunityID, &e.ItemID, &e.Role); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+// ValidatedItemsForRun returns items linked to a run whose status is validated.
+func (s *Store) ValidatedItemsForRun(ctx context.Context, runID string) ([]*domain.Item, error) {
+	items, err := s.ItemsForRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	var out []*domain.Item
+	for _, it := range items {
+		if it.Status == domain.ItemValidated {
+			out = append(out, it)
+		}
+	}
+	return out, nil
+}
+
+// CountExecutions counts provider calls made by an agent within a run (any outcome).
+func (s *Store) CountExecutions(ctx context.Context, runID, agent string) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `SELECT COUNT(1) FROM agent_executions WHERE run_id=? AND agent_name=?`, runID, agent).Scan(&n)
+	return n, err
+}
+
+// LatestSuccessfulExecution returns the most recent ok/repaired execution of an agent in a run.
+func (s *Store) LatestSuccessfulExecution(ctx context.Context, runID, agent string) (*domain.AgentExecution, error) {
+	execs, err := s.ExecutionsForRun(ctx, runID)
+	if err != nil {
+		return nil, err
+	}
+	var last *domain.AgentExecution
+	for _, e := range execs {
+		if e.AgentName == agent && (e.Outcome == "ok" || e.Outcome == "repaired") {
+			last = e
+		}
+	}
+	if last == nil {
+		return nil, ErrNotFound
+	}
+	return last, nil
+}
+
+// ApprovalsFor returns the append-only decision history for a subject, oldest first.
+func (s *Store) ApprovalsFor(ctx context.Context, subjectType, subjectID string) ([]*domain.ApprovalRecord, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, subject_type, subject_id, decision, decided_by, note, decided_at FROM approval_records WHERE subject_type=? AND subject_id=? ORDER BY decided_at, id`, subjectType, subjectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*domain.ApprovalRecord
+	for rows.Next() {
+		var a domain.ApprovalRecord
+		var note sql.NullString
+		if err := rows.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.Decision, &a.DecidedBy, &note, &a.DecidedAt); err != nil {
+			return nil, err
+		}
+		a.Note = str(note)
+		out = append(out, &a)
+	}
+	return out, rows.Err()
+}

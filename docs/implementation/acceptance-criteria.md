@@ -71,6 +71,31 @@ Legend for *Test method*: U = unit test, I = integration test (store + orchestra
 
 Each phase report must list, per criterion touched: status, evidence (test name or command output), and date. Criteria must never be marked `passed` from reasoning alone.
 
+## 7. Phase 3 — Strategy Agent (2026-10-13; implemented, uncommitted, pending approval)
+
+All statuses below come from `GOPROXY=off GOSUMDB=off make test` and `make test-race` on 2026-10-13 (both green, `go vet` clean, `go.mod`/`go.sum` unchanged).
+
+| ID | Criterion | Evidence (tests) | Status |
+|---|---|---|---|
+| P3-1 | Opportunities cite only validated items of the parent run; every stored evidence link resolves to a validated item | `TestStrategy_MockEndToEnd`, `TestValidEvidenceIsTraceableAndTierA` | passed |
+| P3-2 | Missing evidence → `rejected`; no A–C fact → hypothesis capped at Tier C; nonexistent or unvalidated refs are reported and never linked | `TestGate1_NonexistentOrUnvalidatedRefs`, `TestGate1_HypothesisOnlyIsCappedAtTierC`, `TestStrategy_GatesFixture` (item `manual:unvalidated#1`) | passed |
+| P3-3 | Conflicting evidence caps the tier at C and shows both sides | `TestGate2_ConflictShowsBothSidesAndCapsTier`, `TestDetectConflicts`, `TestStrategy_ConflictingEvidenceCapsTierAndShowsBothSides` | passed |
+| P3-4 | Brand-checker failures block; unsupported prices, hours, addresses, statistics, customer claims and numbers are rejected; identifiers and evidence-supported numbers pass | `TestGate3_BrandFailureBlocks`, `TestGate3b_UnsupportedFactualClaimsRejected`, `TestGate3b_NumbersSupportedByEvidenceOrIdentifiersPass`, `TestStrategy_GatesFixture` | passed |
+| P3-5 | Store-dependent opportunities are labelled, ease of testing capped, never rejected for that reason | `TestGate4_StoreDependencyIsLabelledNotRejected` | passed |
+| P3-6 | Duplicates merged without losing corroborating evidence; different topics never merged | `TestGate5_DedupMergesWithoutLosingCorroboration`, `TestStrategy_MockEndToEnd` (proposal 4 merged into 1) | passed |
+| P3-7 | Evidence strength and tiers are recomputed by code; agent values are capped; ordinal sum labelled, no probabilities | `TestEvidenceStrengthRubricIsComputedByCode`, `TestTiersAreRecomputedByCode`, `TestMeasurabilityFollowsKPIAvailability`, golden `testdata/golden/strategy-sample.md` | passed |
+| P3-8 | Config hash, scoring hash and fixture hash recorded per run and per opportunity | `TestStrategy_HashesRecordedPerRun` | passed |
+| P3-9 | Approval history is append-only; status mirrors the latest decision; blocked/rejected cannot be approved; approved briefs export to `drafts/`, never into the workspace | `TestStrategy_ApprovalHistoryIsAppendOnly`, `TestCLIStrategyWorkflowIsolated` | passed |
+| P3-10 | At most two Strategy Agent calls per run, across retries and resumes | `TestStrategy_AtMostTwoAgentCallsPerRun`, `TestStrategy_TimeoutEnforced` | passed |
+| P3-11 | Budget ceiling and step timeout enforced for the strategy step; timed-out calls booked as uncertain cost | `TestStrategy_BudgetCeilingBlocksAgent`, `TestStrategy_TimeoutEnforced` | passed |
+| P3-12 | A resumed run re-renders its report from stored data and never duplicates opportunities | `TestStrategy_ResumeRendersFreshReportAndNeverDuplicates` | passed |
+| P3-13 | No network and no paid provider: mock capabilities `Network=false`, cost USD 0, prompts/outputs recorded | `TestStrategy_NoNetworkNoPaidProvider` | passed |
+| P3-14 | Agent output parsed strictly (unknown fields rejected), structural validation, evidence inside the untrusted block | `TestParseOutput`, `TestStructuralValidation`, `TestBuildRequestIsolatesUntrustedData` | passed |
+| P3-15 | Strategy report, HTML and brief escape hostile values and separate tiers, blocked and rejected | `TestStrategyMarkdownAndBriefEscapeHostileValues` | passed |
+| P3-16 | Clean end-to-end strategy report on the sample batch matches the golden file | `TestStrategy_MockEndToEnd` | passed |
+
+Mapping to the Phase 1 criteria touched: F2 (strategy report), F4 (claim checking on generated text), F5 (scoring with rationale), F11/F12 (approvals before handoff), S2/S3 (untrusted block, no tools), Q1 (sample report inspected), Q3 (conflicts both sides). Live sources (S7, Q4 allowlist) remain N-A: fetching is not enabled.
+
 ## 8. Remediation record — Phase 2 audit findings (2026-10-13)
 
 | Finding | Fix | Evidence (tests) | Status |
@@ -85,3 +110,20 @@ Each phase report must list, per criterion touched: status, evidence (test name 
 | Extra | clean `completed` fixture and test; direct renderer tests; CLI smoke with isolated `MIA_DATA_DIR`/`MIA_REPORTS_DIR` | `TestWorkflow_CleanCompleted`, `report_test.go`, `TestCLISmokeIsolated` | passed |
 
 Not changed in this sprint (out of its scope): A8–A16 from the audit report.
+
+## 9. Open audit findings after Phase 3 (2026-10-13)
+
+Phase 3 did not set out to fix A8–A16 and they remain **unresolved** unless a row says otherwise with a test.
+
+| Finding | Summary (from the Phase 2 audit) | Phase 3 status |
+|---|---|---|
+| A8 | mock model price 0 means the budget gate cannot trigger in the default configuration | unresolved (tests exercise the gate with `claude-opus-5-5` only: `TestWorkflow_BudgetExhausted`, `TestStrategy_BudgetCeilingBlocksAgent`) |
+| A9 | timeouts are retryable, so a hung step can run up to 3× the step timeout; no run-level deadline | unresolved for research; the strategy step is additionally bounded by the per-run cap of 2 calls (`TestStrategy_TimeoutEnforced`), the finding itself is not closed |
+| A10 | title-only near-duplicate detection can mark items from different sources as `duplicate_of` | unresolved (unchanged in `internal/research/dedup`) |
+| A11 | agent-produced research items are stored without a PII scan | unresolved (strategy output is not PII-scanned either; it contains no customer records by design) |
+| A12 | `.env` permission bits unchecked; run-id arguments not pattern-validated | unresolved (new `--id`/`--run` arguments are looked up in the database the same way) |
+| A13 | config hash covers only the YAML files, not environment overrides | unresolved; `scoring.yaml` is now part of the hashed file set and has its own `scoring_config_hash`, env overrides remain outside both hashes |
+| A14 | no test asserted a clean `completed` status | tests now assert it (`TestWorkflow_CleanCompleted` from the remediation sprint; `TestStrategy_MockEndToEnd` requires `completed` for the strategy run); formal closure is left to the next audit |
+| A15 | `bin/mia` built before the first commit is not tied to a commit | unresolved (`bin/` is git-ignored; rebuild from the approved commit) |
+| A16 | informational: `ResolveUnder` rejects any relative path containing `..` as a substring | unresolved (behaviour unchanged; the same guard protects `export brief`) |
+| Coverage gaps (audit §7) | `report`, `provider/mock`, `provider/registry`, `cmd` had little or no own tests | partially reduced: `report` now has renderer tests for research and strategy, `cmd` has two CLI workflow tests; `mock` and `registry` still have no own test files |

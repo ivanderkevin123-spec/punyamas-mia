@@ -1,0 +1,62 @@
+# Brief Kampanye — {{text .Opp.Title}}
+
+> **DRAF UNTUK SERAH TERIMA MANUAL.** Dihasilkan oleh MIA dari bukti riset tervalidasi dan disetujui peninjau pada {{range .Opp.Approvals}}{{if eq .Decision "approved"}}{{cell .At}} oleh {{text .By}}{{end}}{{end}}. Bukan izin publikasi: semua teks publik tetap harus lolos pemeriksa teks merek dan persetujuan CEO (D-005) serta syarat M1 §2.
+
+| Peluang | Segmen | Tingkat | Status | Run strategi | Run riset |
+|---|---|---|---|---|---|
+| `{{code .Opp.ID}}` | {{cell .Opp.Segment}} | {{cell .Opp.Tier}} | {{cell .Opp.StatusLabel}} | `{{code .Opp.RunID}}` | `{{code .Opp.ParentRunID}}` |
+{{if .Opp.Hypothesis}}
+> Peluang ini **hipotesis**: belum ada fakta tervalidasi berkualitas A/B yang mendukungnya.
+{{end}}{{if .Opp.RequiresStore}}
+> **Memerlukan konfirmasi operasional:** {{text .Opp.Brief.OperationalNote}}
+{{end}}
+## Kebutuhan atau niat pelanggan
+{{text .Opp.Brief.Need}}
+
+## Fakta pendukung (bersumber, tervalidasi)
+{{if not .Opp.Brief.Facts}}_Tidak ada._{{end}}{{range .Opp.Brief.Facts}}- `{{code .ID}}` [{{code .Ref}}] (kualitas {{.Quality}}) {{text .Statement}} — sumber: {{text .SourceName}}
+{{end}}
+## Interpretasi strategis (bukan fakta)
+{{text .Opp.Brief.Interpretation}}
+{{if .Opp.Brief.Interpretations}}
+Interpretasi riset yang dikutip:
+{{range .Opp.Brief.Interpretations}}- `{{code .ID}}` [{{code .Ref}}] {{text .Statement}}
+{{end}}{{end}}{{if .Opp.Brief.Hypotheses}}
+Hipotesis yang dikutip:
+{{range .Opp.Brief.Hypotheses}}- `{{code .ID}}` [{{code .Ref}}] {{text .Statement}}
+{{end}}{{end}}
+## Pesan, konsep penawaran, kanal
+- **Pesan (bahasa niat):** {{text .Opp.Brief.Message}}
+- **Konsep penawaran:** {{text .Opp.Brief.OfferConcept}}
+- **Kanal:** {{text .Opp.Brief.Channel}}
+
+## Uji dan kriteria keberhasilan
+- **Rancangan uji:** {{text .Opp.Brief.TestDesign}}
+- **Metrik:** {{cell .Opp.Brief.SuccessMetric}}
+- **Kriteria keberhasilan:** {{text .Opp.Brief.SuccessCriteria}}
+
+## Sumber daya dan perkiraan upaya
+- **Sumber daya:** {{text .Opp.Brief.Resources}}
+- **Upaya:** {{cell .Opp.Brief.Effort}}
+
+## Risiko, asumsi, bukti yang kurang, ketergantungan
+{{range .Opp.Brief.Risks}}- Risiko: {{text .}}
+{{end}}{{range .Opp.Brief.Assumptions}}- Asumsi: {{text .}}
+{{end}}{{range .Opp.Brief.MissingEvidence}}- Bukti yang kurang: {{text .}}
+{{end}}{{range .Opp.Brief.Dependencies}}- Ketergantungan: {{text .}}
+{{end}}
+## Tindakan berikutnya
+{{text .Opp.Brief.NextAction}}
+
+## Penilaian (ordinal; jumlah bukan probabilitas)
+| Dimensi | Nilai (0–3) | Sumber nilai | Alasan |
+|---|---|---|---|
+{{range .Opp.Dims}}| {{cell .Label}} | {{.Value}} | {{cell .Source}} | {{cell .Rationale}} |
+{{end}}
+Jumlah ordinal: **{{.Opp.OrdinalSum}} dari 15** (jumlah ordinal, bukan probabilitas). Tingkat: **{{.Opp.Tier}}**.{{range .Opp.Caps}} Batas: {{text .Gate}} — {{text .Reason}}.{{end}}
+
+## Riwayat keputusan (hanya-tambah)
+{{range .Opp.Approvals}}- {{cell .At}} — {{cell .Decision}} oleh {{text .By}}{{if .Note}}: {{text .Note}}{{end}}
+{{end}}
+---
+_Jejak: run strategi `{{code .Opp.RunID}}`, run riset `{{code .Opp.ParentRunID}}`, konfigurasi `{{code .Opp.ConfigHash}}`, aturan skor `{{code .Opp.ScoringHash}}`{{if .Opp.FixtureHash}}, fixture `{{code .Opp.FixtureHash}}`{{end}}. Dibuat {{.Generated}} oleh MIA untuk {{text .BrandName}}._

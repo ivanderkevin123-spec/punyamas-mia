@@ -1,4 +1,4 @@
-// Command mia is the Punyamas Marketing Intelligence Agent CLI (Phase 2: mock-only).
+// Command mia is the Punyamas Marketing Intelligence Agent CLI (Phase 3: mock-only).
 package main
 
 import (
@@ -27,9 +27,9 @@ import (
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/store"
 )
 
-const version = "0.2.0-phase2"
+const version = "0.3.0-phase3"
 
-const usage = `mia — Punyamas Marketing Intelligence Agent (Fase 2, mode mock)
+const usage = `mia — Punyamas Marketing Intelligence Agent (Fase 3, mode mock)
 
 Perintah:
   run research --inputs DIR [--fixture KEY] [--until STEP] [--force]   jalankan alur riset
@@ -40,6 +40,10 @@ Perintah:
   validate --inputs DIR                                                periksa berkas impor tanpa menyimpan
   config check [--json]                                                periksa konfigurasi dan perubahan aset ruang kerja
   approve asset --key KEY --note TEKS                                  terima perubahan aset setelah ditinjau
+  run strategy --from-run RUN_ID [--fixture KEY] [--resume ID]         Agen Strategi: peluang dari bukti tervalidasi (Fase 3)
+  opportunities --run RUN_ID                                           daftar peluang sebuah run strategi
+  approve opportunity --id ID --decision approved|rejected|needs_more_evidence --note TEKS
+  export brief --id ID [--out PATH]                                    ekspor brief peluang yang disetujui untuk serah terima manual
   version
 
 Opsi umum: --root DIR (default: direktori kerja). Kode keluar: 0 ok, 1 kesalahan, 2 run gagal atau perlu tinjauan.
@@ -117,11 +121,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "mia", version)
 		return 0
 	case "run":
-		if len(args) < 2 || args[1] != "research" {
-			fmt.Fprintln(stderr, "gunakan: mia run research --inputs DIR")
+		if len(args) < 2 {
+			fmt.Fprintln(stderr, "gunakan: mia run research --inputs DIR  |  mia run strategy --from-run RUN_ID")
 			return 1
 		}
-		return cmdRun(ctx, args[2:], "", stdout, stderr)
+		switch args[1] {
+		case "research":
+			return cmdRun(ctx, args[2:], "", stdout, stderr)
+		case "strategy":
+			return cmdRunStrategy(ctx, args[2:], stdout, stderr)
+		default:
+			fmt.Fprintln(stderr, "gunakan: mia run research --inputs DIR  |  mia run strategy --from-run RUN_ID")
+			return 1
+		}
 	case "import":
 		return cmdRun(ctx, args[1:], orchestrator.StepDedup, stdout, stderr)
 	case "status":
@@ -137,11 +149,27 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return cmdConfigCheck(ctx, args[2:], stdout, stderr)
 	case "approve":
-		if len(args) < 2 || args[1] != "asset" {
-			fmt.Fprintln(stderr, "gunakan: mia approve asset --key KEY --note TEKS")
+		if len(args) < 2 {
+			fmt.Fprintln(stderr, "gunakan: mia approve asset --key KEY --note TEKS  |  mia approve opportunity --id ID --decision ... --note TEKS")
 			return 1
 		}
-		return cmdApproveAsset(ctx, args[2:], stdout, stderr)
+		switch args[1] {
+		case "asset":
+			return cmdApproveAsset(ctx, args[2:], stdout, stderr)
+		case "opportunity":
+			return cmdApproveOpportunity(ctx, args[2:], stdout, stderr)
+		default:
+			fmt.Fprintln(stderr, "gunakan: mia approve asset ... | mia approve opportunity ...")
+			return 1
+		}
+	case "opportunities":
+		return cmdOpportunities(ctx, args[1:], stdout, stderr)
+	case "export":
+		if len(args) < 2 || args[1] != "brief" {
+			fmt.Fprintln(stderr, "gunakan: mia export brief --id ID [--out PATH]")
+			return 1
+		}
+		return cmdExportBrief(ctx, args[2:], stdout, stderr)
 	default:
 		fmt.Fprintf(stderr, "perintah tidak dikenal: %s\n\n%s", args[0], usage)
 		return 1
@@ -313,7 +341,12 @@ func cmdReport(ctx context.Context, args []string, stdout, stderr io.Writer) int
 	if sum.Status == "" {
 		sum.Status = r.Status
 	}
-	md, html, err := a.rend.Render(ctx, r, &sum)
+	var md, html string
+	if r.Kind == "strategy" {
+		md, html, err = a.rend.RenderStrategy(ctx, r, &sum)
+	} else {
+		md, html, err = a.rend.Render(ctx, r, &sum)
+	}
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
 		return 1

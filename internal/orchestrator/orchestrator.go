@@ -43,6 +43,7 @@ const dedupThreshold = 0.8
 // Renderer is implemented by the report package.
 type Renderer interface {
 	Render(ctx context.Context, run *domain.Run, sum *domain.RunSummary) (mdPath, htmlPath string, err error)
+	RenderStrategy(ctx context.Context, run *domain.Run, sum *domain.RunSummary) (mdPath, htmlPath string, err error)
 }
 
 type Deps struct {
@@ -59,6 +60,7 @@ type Deps struct {
 
 type Options struct {
 	InputsDir  string
+	FromRun    string // strategy runs: the research run that supplies validated evidence
 	FixtureKey string
 	ResumeID   string
 	Until      string
@@ -109,9 +111,10 @@ type runCtx struct {
 	sum        *domain.RunSummary
 	prev       *domain.RunSummary // summary of the previous invocation when resuming
 	skipped    map[string]bool    // steps already completed and skipped in this invocation
-	failed     bool
-	stopped    bool
-	costWarned bool
+	failed      bool
+	stopped     bool
+	costWarned  bool
+	parentRunID string // strategy runs: research run id whose items are the evidence base
 }
 
 func (rc *runCtx) warn(format string, a ...any) {
@@ -223,42 +226,7 @@ func (o *Orchestrator) RunResearch(ctx context.Context, opts Options) (*domain.R
 	}
 	o.d.Log.Info("run started", "run_id", run.ID, "resume", opts.ResumeID != "", "inputs", opts.InputsDir, "provider", run.ProviderName)
 
-	for _, def := range o.defs() {
-		st := rc.steps[def.name]
-		if st == nil {
-			return nil, fmt.Errorf("langkah %s tidak ada pada run %s", def.name, run.ID)
-		}
-		// The report is always re-rendered so a resumed run never keeps a stale failure report.
-		if st.Status == domain.StepCompleted && !opts.Force && def.name != StepReport {
-			rc.skipped[def.name] = true
-			rc.sum.Steps = append(rc.sum.Steps, domain.StepSummary{Name: st.Name, Status: st.Status, Attempts: st.Attempts})
-			continue
-		}
-		if (rc.failed || rc.stopped) && def.name != StepReport {
-			if st.Status != domain.StepCompleted {
-				st.Status = domain.StepSkipped
-				_ = o.d.Store.UpdateStep(ctx, st)
-			}
-			rc.sum.Steps = append(rc.sum.Steps, domain.StepSummary{Name: st.Name, Status: st.Status, Attempts: st.Attempts})
-			continue
-		}
-		if def.name == StepReport {
-			// Counts and costs come from persisted data so the report matches the stored summary (A3, A7).
-			if err := o.refreshCounts(ctx, rc); err != nil {
-				return nil, err
-			}
-			if err := o.refreshCosts(ctx, rc); err != nil {
-				return nil, err
-			}
-			rc.sum.Status = o.provisionalStatus(rc)
-			rc.run.FinishedAt = o.ts()
-		}
-		o.execStep(ctx, rc, def)
-		if opts.Until != "" && def.name == opts.Until {
-			rc.stopped = true
-		}
-	}
-	return o.finalize(ctx, rc)
+	return o.execute(ctx, rc, o.defs())
 }
 
 func (o *Orchestrator) execStep(ctx context.Context, rc *runCtx, def stepDef) {
@@ -398,7 +366,7 @@ func (o *Orchestrator) CountsFromStore(ctx context.Context, runID string) (domai
 // refreshCounts replaces the summary counts with store-derived values, keeping
 // process-only counters from this invocation or, for skipped steps, from the previous one.
 func (o *Orchestrator) refreshCounts(ctx context.Context, rc *runCtx) error {
-	c, err := o.CountsFromStore(ctx, rc.run.ID)
+	c, err := o.CountsFromStore(ctx, rc.evidenceRunID())
 	if err != nil {
 		return err
 	}
@@ -412,6 +380,13 @@ func (o *Orchestrator) refreshCounts(ctx context.Context, rc *runCtx) error {
 		}
 	}
 	rc.sum.Counts = c
+	if rc.run.Kind == "strategy" {
+		sc, err := o.strategyCounts(ctx, rc)
+		if err != nil {
+			return err
+		}
+		rc.sum.Strategy = sc
+	}
 	return nil
 }
 
@@ -1032,7 +1007,13 @@ func (o *Orchestrator) stepReport(ctx context.Context, rc *runCtx) error {
 	if o.d.Renderer == nil {
 		return failf("penyaji laporan tidak dikonfigurasi")
 	}
-	md, html, err := o.d.Renderer.Render(ctx, rc.run, rc.sum)
+	var md, html string
+	var err error
+	if rc.run.Kind == "strategy" {
+		md, html, err = o.d.Renderer.RenderStrategy(ctx, rc.run, rc.sum)
+	} else {
+		md, html, err = o.d.Renderer.Render(ctx, rc.run, rc.sum)
+	}
 	if err != nil {
 		return failf("laporan gagal dibuat: %v", err)
 	}

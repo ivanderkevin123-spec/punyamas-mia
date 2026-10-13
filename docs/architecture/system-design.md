@@ -1,5 +1,7 @@
 # MIA — System Design
 
+> **Phase 3 update (2026-10-13):** the Strategy Agent workflow (steps `load_evidence → conflicts → strategy_agent → evaluate → report`, gates, scoring, approvals) is specified in `strategy-agent.md`; this document keeps the Phase 1 design.
+
 **Status:** Phase 1 draft · 2026-10-12 · English. Inputs: `docs/audit/*.md` (historical), Phase 1 re-verification (§1), approved decisions (Go 1.27.2 native, mock-only AI, no live fetching, read-only `bots/punyamas`, USD 20/month ceiling, separate `mia` repo).
 
 ## 0. Ringkasan untuk pemilik usaha (Bahasa Indonesia)

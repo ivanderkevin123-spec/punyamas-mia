@@ -1,4 +1,4 @@
-# MIA — Operations Guide (Phase 2)
+# MIA — Operations Guide (Phase 3)
 
 English for engineers; command output and report labels are Indonesian.
 
@@ -86,8 +86,9 @@ Files in `config/` (validated strictly at start; unknown keys are errors; secret
 | `marketing-policy.yaml` | nine banned-claim categories ported from `brand-oracle.mjs` |
 | `business.yaml` | facts FB1–FB14 from `B4-fakta.json`, mandatory fill-ins |
 | `brand.yaml` | positioning, pillars, tone, audiences, key messages, tagline candidates from B1 |
+| `scoring.yaml` | Phase 3 Strategy Agent rules applied by code: tier thresholds, duplicate thresholds, conflict heuristic (negation pattern + minimum similarity), unsupported-claim patterns, store-dependency terms, KPI/segment/pillar/effort enumerations; hashed into every strategy run and opportunity (`scoring_config_hash`) |
 
-Environment (`.env`, git-ignored; see `.env.example`): `MIA_DATA_DIR`, `MIA_REPORTS_DIR`, `MIA_WORKSPACE_ROOT`, `MIA_PROVIDER`, `MIA_MODEL`, `MIA_FIXTURE_KEY`, `MIA_LOG_LEVEL=debug`.
+Environment (`.env`, git-ignored; see `.env.example`): `MIA_DATA_DIR`, `MIA_REPORTS_DIR`, `MIA_DRAFTS_DIR`, `MIA_WORKSPACE_ROOT`, `MIA_PROVIDER`, `MIA_MODEL`, `MIA_FIXTURE_KEY`, `MIA_LOG_LEVEL=debug`.
 
 ## 3. Commands
 
@@ -100,11 +101,30 @@ Environment (`.env`, git-ignored; see `.env.example`): `MIA_DATA_DIR`, `MIA_REPO
 ./bin/mia validate --inputs DIR          # parse only, no database
 ./bin/mia config check [--json]          # exit 2 when review is required
 ./bin/mia approve asset --key KEY --note "..." [--by NAME]
+./bin/mia run strategy --from-run RUN_ID [--fixture KEY] [--force]   # Phase 3: opportunities from the validated items of a research run
+./bin/mia run strategy --resume RUN_ID
+./bin/mia opportunities --run RUN_ID     # id, tier, status, segment, ordinal sum, title, labels
+./bin/mia approve opportunity --id ID --decision approved|rejected|needs_more_evidence --note "..." [--by NAME]
+./bin/mia export brief --id ID [--out PATH]   # approved opportunities only; default drafts/<id>.md; paths inside the workspace are refused
 ```
 
-Exit codes: 0 ok · 1 error · 2 run failed / review required.
+Exit codes: 0 ok · 1 error · 2 run failed / review required / export refused.
 
 Steps of a research run: `import → workspace → dedup → research_agent → validate → report`. The report step runs even after a failure so the failure is visible.
+
+Steps of a strategy run: `load_evidence → conflicts → strategy_agent → evaluate → report`. `load_evidence` requires the parent research run to be `completed` or `completed_with_warnings` with at least one validated item. The Strategy Agent is called at most **twice per run** (one call plus one bounded repair), counted from persisted executions including errors and timeouts; a run whose two calls are spent fails with `batas 2 panggilan` and must be started again with `--from-run` (the failed run keeps its report). `--resume` re-renders the report from stored data and never reuses a stale one; `--force` re-runs completed steps but never duplicates stored opportunities. See `docs/architecture/strategy-agent.md`.
+
+Local mock walkthrough:
+
+```bash
+make build
+./bin/mia run research --inputs testdata/sample-batch          # note the printed research run id
+./bin/mia run strategy --from-run <research-run-id>             # fixture key defaults to the research run's key (sample-batch)
+./bin/mia opportunities --run <strategy-run-id>
+./bin/mia approve opportunity --id <opp-id> --decision approved --note "Uji konten pertama"
+./bin/mia export brief --id <opp-id>                            # drafts/<opp-id>.md, then hand over manually
+./bin/mia run strategy --from-run <research-run-id> --fixture gates   # demo of every gate failure (blocked/rejected)
+```
 
 ## 4. Import file formats
 
@@ -123,14 +143,15 @@ Rules: facts need an excerpt; dates are `YYYY-MM-DD` or RFC 3339; files containi
 
 ## 6. Mock provider and fixtures
 
-`testdata/fixtures/<agent>/<fixture-key>.json` (default key = inputs directory name; fallback `default.json`). Missing fixture → empty output with a warning, never a fabricated finding. Usage tokens are estimated (runes/4) and cost is USD 0 and measurable.
+`testdata/fixtures/<agent>/<fixture-key>.json` (default key = inputs directory name; fallback `default.json`). Missing fixture → empty output with a warning, never a fabricated finding. Usage tokens are estimated (runes/4) and cost is USD 0 and measurable. Strategy fixtures: `strategy/sample-batch.json` (three Tier A proposals, one duplicate that is merged, one store-dependent hypothesis), `strategy/gates.json` (one proposal per gate failure plus one valid store-dependent proposal), `strategy/conflict.json` (used by the conflict test), `strategy/default.json` (empty). The sha256 of the replayed fixture is recorded on the run and on every opportunity (`fixture_hash`).
 
 ## 7. Data, backups, logs
 
 - `data/mia.sqlite` (0600, WAL), `data/executions/*.request|response.txt` (0600, full prompts and raw outputs), `data/logs/mia-YYYY-MM-DD.jsonl` (redacted).
 - Cost ledger semantics (A7): a row per provider call. `estimated = 0` with `unit_price_source = provider_reported` or `price_table:<date>` is actual spend; `estimated = 1` with `uncertain:timeout` or `uncertain:error` is the pre-call estimate booked for a call whose outcome is unknown (never an actual charge); `unmeasurable:estimate` is an estimate for a provider that reports no usage. Ceilings count all rows, so repeated failures cannot bypass them. At most one row exists per execution: a later reconciliation replaces the uncertain row. Reports show total, actual and uncertain figures separately. Authentication and billing rejections book nothing.
+- Phase 3 tables: `opportunities` (evaluation, tier, brief JSON, config/scoring/fixture hashes, execution id) and `opportunity_evidence` (opportunity → validated item, role). Review decisions go to `approval_records` (append-only; the opportunity's `status` mirrors the latest decision, the evaluation is never edited).
 - Backup: copy `data/mia.sqlite` while no run is active (a `mia backup` command is planned for Phase 7).
-- `reports/` and `drafts/` are plain files; both are git-ignored.
+- `reports/` and `drafts/` are plain files; both are git-ignored. `drafts/<opportunity-id>.md` is the exported brief for manual handoff to `bots/punyamas` (MIA never writes there).
 
 ## 8. Troubleshooting
 
@@ -144,3 +165,7 @@ Rules: facts need an excerpt; dates are `YYYY-MM-DD` or RFC 3339; files containi
 | step `budget_exhausted` | ceilings reached (monthly ledger in WIB) | wait for next month, raise ceilings deliberately in `agent-limits.yaml`, or stay in mock |
 | `status` shows `(STALE)` | process died mid-run | `mia run research --resume RUN_ID` |
 | `tls: failed to verify certificate` during `go get` | sandboxed proxy | use the local module cache (see §1) or run outside the sandbox |
+| strategy run `failed` at `load_evidence` with "berstatus ..." | the research run is not completed or has no validated items | finish the research run (`--resume`), then `run strategy --from-run` again |
+| `batas 2 panggilan Agen Strategi per run sudah tercapai` | both calls of this run were spent (errors and timeouts count) | fix the cause, then start a new run with `run strategy --from-run RUN_ID` |
+| `export brief` exits 2 with "hanya peluang berstatus approved" | the opportunity is not approved (or a later decision changed it) | record `--decision approved` first; blocked/rejected opportunities can never be approved |
+| `export brief` refuses the path ("baca-saja") | `--out` points inside the Punyamas workspace | export elsewhere (default `drafts/`) and hand over manually |

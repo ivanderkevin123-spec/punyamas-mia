@@ -1,0 +1,32 @@
+# Strategy Agent evaluation rules (Phase 3). Everything here is applied by code, not by the model.
+# Scores are ordinal (0–3 per dimension); a total is an ordinal sum, never a probability.
+version: v1
+tiers:
+  a: { evidence_min: 2, intent_min: 2, fit_min: 2 }   # and no tier cap
+  b: { evidence_min: 1, fit_min: 2 }                  # and no cap forcing Tier C
+dedup:
+  shared_evidence_fraction: 0.5   # |shared ids| / min(|a|, |b|) >= this, within the same topic_key
+  title_jaccard: 0.8
+conflict:
+  # Deterministic heuristic: two validated facts with the same topic_key from different sources,
+  # exactly one of which contains a negation marker, and whose statements are otherwise similar
+  # (token Jaccard >= min_similarity after removing the negation words), are placed in one conflict group.
+  # Statements about different subjects under one topic are not conflicts; paraphrased contradictions may be missed.
+  negation_pattern: '(?i)\b(tidak|bukan|belum|tanpa|jarang)\b'
+  min_similarity: 0.5
+# Evidence strength is computed by code from the cited validated facts:
+# 0 = none (hypothesis); 1 = one C-quality fact; 2 = one B-quality fact or two C-quality facts from different sources;
+# 3 = one A-quality fact or two B-quality facts from different sources.
+unsupported_claims:   # Gate 3: factual claims a draft may not make unless the text appears in cited evidence
+  - { category: HARGA, pattern: '(?i)(\bRp\s?\d|\d+\s*(ribu|juta)\b|\bper\s?gram\b[^.]*\d|\d[^.]*\bper\s?gram\b|\bharga (beli|jual) \d)', reason: "harga tidak boleh disebut" }
+  - { category: JAM_BUKA, pattern: '(?i)(\bjam (buka|layanan|operasional)\b|\bbuka (pukul|jam|setiap hari|senin|selasa|rabu|kamis|jumat|sabtu|minggu)\b|\bpukul \d{1,2}[.:]\d{2}\b|\b\d{1,2}[.:]\d{2}\s*[-–]\s*\d{1,2}[.:]\d{2}\b)', reason: "jam buka belum ditetapkan" }
+  - { category: ALAMAT, pattern: '(?i)(\bjl\.|\bjalan [A-Z]|\bno\. ?\d|\bkecamatan\b|\bkelurahan\b|\bruko\b|\bmall\b|\bplaza\b)', reason: "alamat toko belum ditetapkan" }
+  - { category: STATISTIK, pattern: '(?i)(\d+([.,]\d+)?\s?%|\b\d+ dari \d+\b|\b(ribuan|ratusan|jutaan) (pelanggan|orang|customer|penjual)\b|\brata-rata \d|\bmayoritas pelanggan\b)', reason: "statistik tanpa sumber" }
+  - { category: KLAIM_PELANGGAN, pattern: '(?i)(\bpelanggan kami (mengatakan|menilai|puas|percaya)\b|\btestimoni\b|\bulasan pelanggan\b|\bcustomer kami\b)', reason: "belum ada pelanggan atau ulasan" }
+# Gate 4 label (not a rejection): phrases in the execution-oriented fields that imply a store, staff or capability that does not exist yet.
+store_dependency_terms: ["toko kami", "di toko", "ke toko", "toko punyamas", "setelah toko buka", "saat toko buka", cabang, konter, kasir, petugas, staf, karyawan, antrean, "datang langsung", "jam layanan", "di tempat"]
+kpis: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11, B1, B2, B3, B4, B5]
+kpis_available_now: [O1, O2, O3, O4, O5, O6, O7, O8, O9, O10, O11]
+segments: [AU1, AU2, AU3, AU4, AU5]
+pillars: [PM1, PM2, PM3, PM4]
+efforts: [rendah, sedang, tinggi]

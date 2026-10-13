@@ -1,0 +1,18 @@
+{
+  "opportunities": [
+    {
+      "title": "Tonjolkan penimbangan terbuka di Toko X",
+      "segment": "AU1", "topic_key": "penimbangan_toko_x",
+      "need": "Penjual ingin melihat penimbangan.", "interpretation": "Interpretasi: praktik Toko X dapat menjadi pembanding.",
+      "fact_refs": ["a.md#1", "b.md#1"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 2, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 2},
+      "dimension_rationale": {"evidence_strength": "dua catatan", "customer_intent": "pengamatan", "strategic_fit": "PM1", "ease_of_testing": "konten", "measurability": "O4"},
+      "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "Kami akan menimbang di depan Bapak atau Ibu.", "offer_concept": "Konten pembanding.", "channel": "Situs", "test_design": "Uji konten.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim konten.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Selesaikan konflik bukti."
+    }
+  ],
+  "conflicts": [["a.md#1", "b.md#1"]],
+  "notes": ""
+}

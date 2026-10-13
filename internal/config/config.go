@@ -211,10 +211,48 @@ type Config struct {
 	Policy   Policy
 	Sources  Sources
 	Limits   Limits
+	Scoring  Scoring
 	Hash     string
 }
 
-var files = []string{"brand.yaml", "business.yaml", "marketing-policy.yaml", "research-sources.yaml", "agent-limits.yaml"}
+// Scoring holds the Phase 3 evaluation rules (config/scoring.yaml); Hash is the sha256 of the file.
+type Scoring struct {
+	Version              string        `yaml:"version"`
+	Tiers                TierRules     `yaml:"tiers"`
+	Dedup                DedupRules    `yaml:"dedup"`
+	Conflict             ConflictRules `yaml:"conflict"`
+	UnsupportedClaims    []Rule        `yaml:"unsupported_claims"`
+	StoreDependencyTerms []string      `yaml:"store_dependency_terms"`
+	KPIs                 []string      `yaml:"kpis"`
+	KPIsAvailableNow     []string      `yaml:"kpis_available_now"`
+	Segments             []string      `yaml:"segments"`
+	Pillars              []string      `yaml:"pillars"`
+	Efforts              []string      `yaml:"efforts"`
+	Hash                 string        `yaml:"-"`
+}
+
+type TierRules struct {
+	A TierThreshold `yaml:"a"`
+	B TierThreshold `yaml:"b"`
+}
+
+type TierThreshold struct {
+	EvidenceMin int `yaml:"evidence_min"`
+	IntentMin   int `yaml:"intent_min"`
+	FitMin      int `yaml:"fit_min"`
+}
+
+type DedupRules struct {
+	SharedEvidenceFraction float64 `yaml:"shared_evidence_fraction"`
+	TitleJaccard           float64 `yaml:"title_jaccard"`
+}
+
+type ConflictRules struct {
+	NegationPattern string  `yaml:"negation_pattern"`
+	MinSimilarity   float64 `yaml:"min_similarity"`
+}
+
+var files = []string{"brand.yaml", "business.yaml", "marketing-policy.yaml", "research-sources.yaml", "agent-limits.yaml", "scoring.yaml"}
 
 var secretPattern = regexp.MustCompile(`sk-ant-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY`)
 
@@ -273,6 +311,9 @@ func Load(root string) (*Config, error) {
 	if v := os.Getenv("MIA_REPORTS_DIR"); v != "" {
 		cfg.Paths.ReportsDir = expandHome(v)
 	}
+	if v := os.Getenv("MIA_DRAFTS_DIR"); v != "" {
+		cfg.Paths.DraftsDir = expandHome(v)
+	}
 	h := sha256.New()
 	raw := map[string][]byte{}
 	for _, name := range files {
@@ -311,6 +352,11 @@ func Load(root string) (*Config, error) {
 	if err := decodeStrict(raw["agent-limits.yaml"], &cfg.Limits); err != nil {
 		return nil, fmt.Errorf("agent-limits.yaml: %w", err)
 	}
+	if err := decodeStrict(raw["scoring.yaml"], &cfg.Scoring); err != nil {
+		return nil, fmt.Errorf("scoring.yaml: %w", err)
+	}
+	sh := sha256.Sum256(raw["scoring.yaml"])
+	cfg.Scoring.Hash = hex.EncodeToString(sh[:])[:16]
 
 	if v := os.Getenv("MIA_WORKSPACE_ROOT"); v != "" {
 		cfg.Sources.Workspace.Root = v
@@ -426,6 +472,33 @@ func (c *Config) Validate() error {
 		if _, err := regexp.Compile(r.Pattern); err != nil {
 			add("marketing-policy rule %s: invalid pattern: %v", r.Category, err)
 		}
+	}
+	sc := c.Scoring
+	for _, th := range []TierThreshold{sc.Tiers.A, sc.Tiers.B} {
+		if th.EvidenceMin < 0 || th.EvidenceMin > 3 || th.IntentMin < 0 || th.IntentMin > 3 || th.FitMin < 0 || th.FitMin > 3 {
+			add("scoring tiers thresholds must be between 0 and 3")
+		}
+	}
+	if sc.Dedup.SharedEvidenceFraction <= 0 || sc.Dedup.SharedEvidenceFraction > 1 || sc.Dedup.TitleJaccard <= 0 || sc.Dedup.TitleJaccard > 1 {
+		add("scoring dedup fractions must be in (0, 1]")
+	}
+	if sc.Conflict.NegationPattern == "" {
+		add("scoring conflict.negation_pattern is required")
+	} else if _, err := regexp.Compile(sc.Conflict.NegationPattern); err != nil {
+		add("scoring conflict.negation_pattern: %v", err)
+	}
+	if sc.Conflict.MinSimilarity < 0 || sc.Conflict.MinSimilarity > 1 {
+		add("scoring conflict.min_similarity must be between 0 and 1")
+	}
+	for i, r := range sc.UnsupportedClaims {
+		if r.Category == "" || r.Pattern == "" {
+			add("scoring unsupported_claims[%d] needs category and pattern", i)
+		} else if _, err := regexp.Compile(r.Pattern); err != nil {
+			add("scoring unsupported_claims %s: %v", r.Category, err)
+		}
+	}
+	if len(sc.KPIs) == 0 || len(sc.Segments) == 0 || len(sc.Pillars) == 0 || len(sc.Efforts) == 0 {
+		add("scoring kpis, segments, pillars and efforts must be non-empty")
 	}
 	if len(errs) > 0 {
 		return errors.New("config validation failed:\n  - " + strings.Join(errs, "\n  - "))

@@ -25,7 +25,7 @@ func TestMigrateAndIntegrity(t *testing.T) {
 		t.Fatalf("integrity = %q, err %v", res, err)
 	}
 	n, err := s.CountRows(context.Background(), "schema_migrations")
-	if err != nil || n != 1 {
+	if err != nil || n != 2 { // 0001_init + 0002_strategy
 		t.Fatalf("migrations applied = %d, err %v", n, err)
 	}
 }

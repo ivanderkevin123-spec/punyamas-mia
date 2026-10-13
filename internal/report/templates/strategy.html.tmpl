@@ -1,0 +1,65 @@
+{{define "opp"}}<div class="item"><span class="tag">tingkat {{.Tier}}</span>{{if .Hypothesis}}<span class="tag">hipotesis</span>{{end}}{{if .RequiresStore}}<span class="tag">perlu konfirmasi operasional</span>{{end}}<strong>{{.Title}}</strong> <code>{{.ID}}</code>
+<p class="muted">Status: {{.StatusLabel}}{{if .LatestDecision}} · keputusan terakhir: {{.LatestDecision}}{{end}} · Segmen: {{.Segment}}{{if .TopicKey}} · Topik: <code>{{.TopicKey}}</code>{{end}} · Jumlah ordinal {{.OrdinalSum}}/15 (bukan probabilitas){{if .MergedFrom}} · menggabungkan usulan {{range $i, $m := .MergedFrom}}{{if $i}}, {{end}}#{{$m}}{{end}}{{end}}</p>
+<p><strong>Kebutuhan:</strong> {{.Need}}</p>
+<p><strong>Interpretasi strategis (bukan fakta):</strong> {{.Interpretation}}</p>
+<p><strong>Fakta pendukung:</strong></p><ul>{{range .Brief.Facts}}<li><code>{{.ID}}</code> [{{.Ref}}] kualitas {{.Quality}} — {{.Statement}} <span class="muted">({{.SourceName}})</span></li>{{else}}<li>tidak ada</li>{{end}}</ul>
+{{if .Brief.Interpretations}}<p><strong>Interpretasi riset yang dikutip:</strong></p><ul>{{range .Brief.Interpretations}}<li><code>{{.ID}}</code> [{{.Ref}}] {{.Statement}}</li>{{end}}</ul>{{end}}
+{{if .Brief.Hypotheses}}<p><strong>Hipotesis yang dikutip:</strong></p><ul>{{range .Brief.Hypotheses}}<li><code>{{.ID}}</code> [{{.Ref}}] {{.Statement}}</li>{{end}}</ul>{{end}}
+<table><tr><th>Dimensi</th><th>Nilai</th><th>Sumber nilai</th><th>Alasan</th></tr>{{range .Dims}}<tr><td>{{.Label}}</td><td>{{.Value}}</td><td>{{.Source}}</td><td>{{.Rationale}}</td></tr>{{end}}</table>
+{{range .Caps}}<p class="warn">Batas tingkat: {{.Gate}} — {{.Reason}}</p>{{end}}
+{{range .Gates}}{{if .Details}}<p class="muted">Gerbang {{.Gate}}{{if .Passed}} (lolos){{else}} (catatan){{end}}: {{range $i, $x := .Details}}{{if $i}}; {{end}}{{$x}}{{end}}</p>{{end}}{{end}}
+{{range .Conflicts}}<div class="warn"><strong>Konflik bukti {{.Group}} — kedua sisi:</strong><ul>{{range .Sides}}<li>{{if .Cited}}(dikutip) {{end}}<code>{{.ID}}</code> [{{.Ref}}] {{.Statement}} — {{.SourceName}}</li>{{end}}</ul></div>{{end}}
+<p><strong>Pesan (bahasa niat):</strong> {{.Brief.Message}}<br><strong>Konsep penawaran:</strong> {{.Brief.OfferConcept}} · <strong>Kanal:</strong> {{.Brief.Channel}}<br><strong>Uji:</strong> {{.Brief.TestDesign}} · <strong>Metrik:</strong> {{.Brief.SuccessMetric}} · <strong>Kriteria:</strong> {{.Brief.SuccessCriteria}}<br><strong>Sumber daya:</strong> {{.Brief.Resources}} · <strong>Upaya:</strong> {{.Brief.Effort}}</p>
+<ul>{{range .Brief.Risks}}<li>Risiko: {{.}}</li>{{end}}{{range .Brief.Assumptions}}<li>Asumsi: {{.}}</li>{{end}}{{range .Brief.MissingEvidence}}<li>Bukti yang kurang: {{.}}</li>{{end}}{{range .Brief.Dependencies}}<li>Ketergantungan: {{.}}</li>{{end}}</ul>
+<p><strong>Tindakan berikutnya:</strong> {{.Brief.NextAction}}</p>
+{{if .RejectReasons}}<p class="warn">Alasan penolakan/blokir: {{range $i, $x := .RejectReasons}}{{if $i}}; {{end}}{{$x}}{{end}}</p>{{end}}
+{{if .Approvals}}<p class="muted">Riwayat keputusan (hanya-tambah): {{range $i, $a := .Approvals}}{{if $i}}; {{end}}{{$a.At}} {{$a.Decision}} oleh {{$a.By}}{{if $a.Note}} ({{$a.Note}}){{end}}{{end}}</p>{{end}}
+</div>{{end}}<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} — {{.RunID}}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#1B2F4A;line-height:1.5}
+h1,h2,h3{color:#1B2F4A} h1{border-bottom:3px solid #B59864;padding-bottom:.3rem}
+table{border-collapse:collapse;width:100%;margin:.5rem 0;font-size:.92rem} th,td{border:1px solid #d9d4c7;padding:.35rem .5rem;text-align:left;vertical-align:top} th{background:#f5f1e8}
+code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px}
+.fail{background:#fde8e8;border:2px solid #b00020;padding:.75rem;font-weight:bold}
+.warn{background:#fff6dd;border-left:4px solid #B59864;padding:.5rem .75rem;margin:.5rem 0}
+.item{border:1px solid #d9d4c7;border-radius:6px;padding:.6rem .9rem;margin:.6rem 0}
+.tag{display:inline-block;background:#786647;color:#fff;border-radius:3px;padding:0 .4rem;font-size:.8rem;margin-right:.3rem}
+.muted{color:#666;font-size:.9rem}
+</style>
+</head>
+<body>
+<h1>{{.Title}} — {{.BrandName}}</h1>
+{{if .Failed}}<div class="fail">RUN GAGAL / TIDAK LENGKAP. Laporan ini tidak boleh dibaca sebagai hasil strategi yang selesai.</div>{{else if .Incomplete}}<div class="fail">RUN BELUM LENGKAP. Tidak semua langkah dijalankan.</div>{{end}}
+<table><tr><th>Run strategi</th><th>Run riset (bukti)</th><th>Status</th><th>Dibuat (UTC)</th><th>Selesai (UTC)</th><th>Penyedia AI</th><th>Konfigurasi</th><th>Aturan skor</th><th>Fixture</th></tr>
+<tr><td><code>{{.RunID}}</code></td><td><code>{{.ParentRunID}}</code></td><td><strong>{{.StatusLabel}}</strong></td><td>{{.CreatedAt}}</td><td>{{.FinishedAt}}</td><td>{{.Provider}}</td><td><code>{{.ConfigHash}}</code></td><td><code>{{.ScoringHash}}</code></td><td><code>{{.FixtureHash}}</code></td></tr></table>
+<p>Semua peluang adalah <strong>usulan</strong> yang menunggu tinjauan manusia; tidak ada yang disetujui otomatis. Tingkat dihitung ulang oleh kode dari bukti tervalidasi; nilai dimensi adalah ordinal 0–3.</p>
+<h2>1. Ringkasan</h2>
+<ul>
+<li>Bukti tervalidasi tersedia: {{.Counts.EvidenceItems}} butir · kelompok konflik: {{.Counts.ConflictGroups}}</li>
+<li>Usulan agen: {{.Counts.Proposed}} · digabung: {{.Counts.Merged}} · dievaluasi: {{.Counts.Evaluated}}</li>
+<li>Tingkat A: {{.Counts.TierA}} · B: {{.Counts.TierB}} · C: {{.Counts.TierC}} · diblokir: {{.Counts.Blocked}} · ditolak: {{.Counts.Rejected}}</li>
+<li>Hipotesis: {{.Counts.Hypotheses}} · bukti berkonflik: {{.Counts.Conflicted}} · memerlukan toko/operasional: {{.Counts.StoreDependent}}</li>
+<li>Biaya: {{.CostTotal}} (aktual {{.CostActual}}, estimasi tidak pasti {{.CostUncertain}}){{if not .CostMeasurable}} — <strong>biaya tidak dapat diukur sepenuhnya</strong>{{end}} · Plafon bulanan: {{.MonthlyCeiling}}</li>
+</ul>
+<h2>2. Status langkah</h2>
+<table><tr><th>Langkah</th><th>Status</th><th>Percobaan</th><th>Catatan</th></tr>{{range .Steps}}<tr><td>{{.Name}}</td><td>{{.Status}}</td><td>{{.Attempts}}</td><td>{{.Error}}</td></tr>{{end}}</table>
+{{if .Errors}}<h3>Kesalahan</h3><ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{if .Warnings}}<h3>Peringatan</h3>{{range .Warnings}}<div class="warn">{{.}}</div>{{end}}{{end}}
+<h2>3. Tingkat A ({{len .TierA}})</h2>{{if not .TierA}}<p class="muted">Tidak ada.</p>{{end}}{{range .TierA}}{{template "opp" .}}{{end}}
+<h2>4. Tingkat B ({{len .TierB}})</h2>{{if not .TierB}}<p class="muted">Tidak ada.</p>{{end}}{{range .TierB}}{{template "opp" .}}{{end}}
+<h2>5. Tingkat C — hipotesis, konflik, atau bukti lemah ({{len .TierC}})</h2>{{if not .TierC}}<p class="muted">Tidak ada.</p>{{end}}{{range .TierC}}{{template "opp" .}}{{end}}
+<h2>6. Diblokir pemeriksa teks merek ({{len .Blocked}})</h2>{{if not .Blocked}}<p class="muted">Tidak ada.</p>{{end}}{{range .Blocked}}{{template "opp" .}}{{end}}
+<h2>7. Ditolak gerbang bukti atau klaim faktual ({{len .Rejected}})</h2>{{if not .Rejected}}<p class="muted">Tidak ada.</p>{{end}}{{range .Rejected}}{{template "opp" .}}{{end}}
+<h2>8. Eksekusi agen dan biaya</h2>
+<table><tr><th>Eksekusi</th><th>Agen</th><th>Penyedia</th><th>Model</th><th>Hasil</th><th>Token masuk</th><th>Token keluar</th><th>Biaya</th></tr>{{range .Execs}}<tr><td><code>{{.ID}}</code></td><td>{{.Agent}}</td><td>{{.Provider}}</td><td>{{.Model}}</td><td>{{.Outcome}}</td><td>{{.InputTokens}}</td><td>{{.OutputTokens}}</td><td>{{.Cost}}</td></tr>{{end}}{{if not .Execs}}<tr><td colspan="8">tidak ada panggilan</td></tr>{{end}}</table>
+<h2>9. Aturan yang diterapkan kode</h2>
+<ul><li>Gerbang 1 bukti: ID harus ada dan tervalidasi; tanpa fakta A/B → hipotesis, maksimal tingkat C.</li><li>Gerbang 2 konflik: kedua sisi ditampilkan; maksimal tingkat C sampai diselesaikan.</li><li>Gerbang 3 merek dan klaim: gagal pemeriksa merek → diblokir; harga, jam buka, alamat, jaminan, statistik, klaim pelanggan, angka tanpa dukungan → ditolak.</li><li>Gerbang 4 operasional: label, bukan fakta.</li><li>Gerbang 5 duplikat: digabung dengan bukti dipertahankan.</li><li>Tingkat dihitung kode: A (bukti ≥ 2, niat ≥ 2, kesesuaian ≥ 2, tanpa batas), B (bukti ≥ 1, kesesuaian ≥ 2), selainnya C.</li></ul>
+<h2>10. Langkah berikutnya</h2><ul>{{range .NextSteps}}<li>{{.}}</li>{{end}}</ul>
+<p class="muted">Dibuat {{.Generated}} oleh MIA (mode {{.Provider}}). Jejak: konfigurasi {{.ConfigHash}}, aturan skor {{.ScoringHash}}, fixture {{.FixtureHash}}.</p>
+</body>
+</html>

@@ -1,5 +1,7 @@
 # MIA — Data Model
 
+> **Phase 3 update (2026-10-13):** migration `0002_strategy.sql` adds `opportunities` and `opportunity_evidence`; `research_runs` rows of kind `strategy` carry `parent_run_id`; approval records now also cover subject type `opportunity`. Field-level description in `strategy-agent.md` §6.
+
 **Status:** Phase 1 draft · 2026-10-12 · English. Storage decision and entity definitions for the MVP; later-phase entities are specified but not created until their phase.
 
 ## 0. Ringkasan (Bahasa Indonesia)

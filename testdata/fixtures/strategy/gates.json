@@ -1,0 +1,95 @@
+{
+  "opportunities": [
+    {
+      "title": "Referensi tidak ada",
+      "segment": "AU1", "topic_key": "uji_referensi",
+      "need": "Kebutuhan uji.", "interpretation": "Interpretasi uji.",
+      "fact_refs": ["tidak-ada.md#9"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 3, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 3},
+      "dimension_rationale": {}, "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "Kami akan menjelaskan prosesnya.", "offer_concept": "Konten.", "channel": "Situs", "test_design": "Uji.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Lanjut."
+    },
+    {
+      "title": "Mengutip butir yang belum divalidasi",
+      "segment": "AU1", "topic_key": "uji_validasi",
+      "need": "Kebutuhan uji.", "interpretation": "Interpretasi uji.",
+      "fact_refs": ["manual:unvalidated#1"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 3, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 3},
+      "dimension_rationale": {}, "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "Kami akan menjelaskan prosesnya.", "offer_concept": "Konten.", "channel": "Situs", "test_design": "Uji.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Lanjut."
+    },
+    {
+      "title": "Harga per gram",
+      "segment": "AU1", "topic_key": "uji_harga",
+      "need": "Kebutuhan uji.", "interpretation": "Interpretasi uji.",
+      "fact_refs": ["catatan-lapangan-contoh.md#1"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 2, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 2},
+      "dimension_rationale": {}, "fit_pillars": ["PM2"], "requires_store": false,
+      "message": "Kami membeli emas Rp 1.000.000 per gram.", "offer_concept": "Promosi harga.", "channel": "Situs", "test_design": "Uji.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Lanjut."
+    },
+    {
+      "title": "Jam buka toko",
+      "segment": "AU1", "topic_key": "uji_jam",
+      "need": "Kebutuhan uji.", "interpretation": "Interpretasi uji.",
+      "fact_refs": ["catatan-lapangan-contoh.md#2"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 2, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 2},
+      "dimension_rationale": {}, "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "Kami buka setiap hari pukul 08.00 sampai 17.00.", "offer_concept": "Info jam.", "channel": "Situs", "test_design": "Uji.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Lanjut."
+    },
+    {
+      "title": "Alamat toko",
+      "segment": "AU1", "topic_key": "uji_alamat",
+      "need": "Kebutuhan uji.", "interpretation": "Interpretasi uji.",
+      "fact_refs": ["catatan-lapangan-contoh.md#2"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 2, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 2},
+      "dimension_rationale": {}, "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "Kunjungi kami di Jl. Contoh No. 5 Surabaya.", "offer_concept": "Info alamat.", "channel": "Situs", "test_design": "Uji.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Lanjut."
+    },
+    {
+      "title": "Statistik kepuasan",
+      "segment": "AU1", "topic_key": "uji_statistik",
+      "need": "Kebutuhan uji.", "interpretation": "Interpretasi uji.",
+      "fact_refs": ["catatan-lapangan-contoh.md#2"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 2, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 2},
+      "dimension_rationale": {}, "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "90% pelanggan kami puas dengan proses kami.", "offer_concept": "Testimoni.", "channel": "Situs", "test_design": "Uji.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Lanjut."
+    },
+    {
+      "title": "Klaim merek terlarang",
+      "segment": "AU1", "topic_key": "uji_merek",
+      "need": "Kebutuhan uji.", "interpretation": "Interpretasi uji.",
+      "fact_refs": ["catatan-lapangan-contoh.md#2"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 2, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 2},
+      "dimension_rationale": {}, "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "Harga tertinggi dan dijamin puas.", "offer_concept": "Jaminan.", "channel": "Situs", "test_design": "Uji.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Tim.", "effort": "rendah",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Lanjut."
+    },
+    {
+      "title": "Peluang valid yang memerlukan toko",
+      "segment": "AU1", "topic_key": "uji_toko",
+      "need": "Penjual ingin melihat penimbangan.", "interpretation": "Interpretasi: demonstrasi di konter toko.",
+      "fact_refs": ["catatan-lapangan-contoh.md#2", "artikel-edukasi-contoh.json#1"],
+      "dimensions": {"evidence_strength": 3, "customer_intent": 2, "strategic_fit": 3, "ease_of_testing": 3, "measurability": 2},
+      "dimension_rationale": {"evidence_strength": "A dan B", "customer_intent": "artikel", "strategic_fit": "PM1", "ease_of_testing": "demo", "measurability": "O4"},
+      "fit_pillars": ["PM1"], "requires_store": false,
+      "message": "Kami akan menimbang di depan Bapak atau Ibu di konter toko.", "offer_concept": "Demonstrasi di konter.", "channel": "Toko", "test_design": "Amati di toko.",
+      "success_metric": "O4", "success_criteria": "Disetujui.", "resources": "Petugas konter.", "effort": "sedang",
+      "risks": [], "assumptions": [], "missing_evidence": [], "dependencies": [], "next_action": "Siapkan prosedur."
+    }
+  ],
+  "conflicts": [],
+  "notes": ""
+}

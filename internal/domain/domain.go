@@ -224,9 +224,13 @@ type RunSummary struct {
 	CostActualUSD    float64       `json:"cost_actual_usd"`
 	CostUncertainUSD float64       `json:"cost_uncertain_usd"`
 	CostMeasurable   bool          `json:"cost_measurable"`
-	ReportMarkdown string        `json:"report_markdown,omitempty"`
-	ReportHTML     string        `json:"report_html,omitempty"`
-	DurationS      float64       `json:"duration_s"`
+	ReportMarkdown    string          `json:"report_markdown,omitempty"`
+	ReportHTML        string          `json:"report_html,omitempty"`
+	DurationS         float64         `json:"duration_s"`
+	ParentRunID       string          `json:"parent_run_id,omitempty"`
+	Strategy          *StrategyCounts `json:"strategy,omitempty"`
+	FixtureHash       string          `json:"fixture_hash,omitempty"`
+	ScoringConfigHash string          `json:"scoring_config_hash,omitempty"`
 }
 
 type StepSummary struct {
@@ -258,4 +262,74 @@ type DriftEntry struct {
 	Status  string   `json:"status"` // unchanged | changed | missing | new | review_required
 	Path    string   `json:"path"`
 	Details []string `json:"details,omitempty"`
+}
+
+// Opportunity statuses (Phase 3). Review decisions never overwrite earlier
+// approval_records rows; the status column mirrors the latest decision.
+const (
+	OppProposed         = "proposed"           // passed the gates; awaiting human review
+	OppBlocked          = "blocked"            // failed brand validation; cannot be approved
+	OppRejected         = "rejected"           // failed evidence or factual-claim gates
+	OppApproved         = "approved"           // human decision
+	OppNeedsEvidence    = "needs_more_evidence" // human decision
+	OppRejectedByReview = "rejected_by_review" // human decision
+)
+
+// Tiers.
+const (
+	TierA    = "A"
+	TierB    = "B"
+	TierC    = "C"
+	TierNone = "none"
+)
+
+type Opportunity struct {
+	ID                string
+	RunID             string
+	ParentRunID       string
+	ProposalIndex     int
+	Title             string
+	Segment           string
+	TopicKey          string
+	Need              string
+	Interpretation    string
+	Status            string
+	Tier              string
+	Hypothesis        bool
+	RequiresStore     bool
+	DimensionsJSON    string
+	OrdinalSum        int
+	CapsJSON          string
+	GatesJSON         string
+	ConflictsJSON     string
+	BriefJSON         string
+	MergedFromJSON    string
+	RejectReasonsJSON string
+	ConfigHash        string
+	ScoringConfigHash string
+	FixtureHash       string
+	AgentExecutionID  string
+	CreatedAt         string
+}
+
+type OpportunityEvidence struct {
+	OpportunityID string
+	ItemID        string
+	Role          string // fact | interpretation | hypothesis
+}
+
+type StrategyCounts struct {
+	Proposed       int `json:"proposed"`        // proposals received from the agent
+	Merged         int `json:"merged"`          // proposals merged into another (Gate 5)
+	Evaluated      int `json:"evaluated"`       // opportunities stored
+	Blocked        int `json:"blocked"`         // brand validation failures
+	Rejected       int `json:"rejected"`        // evidence or factual-claim failures
+	TierA          int `json:"tier_a"`
+	TierB          int `json:"tier_b"`
+	TierC          int `json:"tier_c"`
+	Hypotheses     int `json:"hypotheses"`
+	Conflicted     int `json:"conflicted"`
+	StoreDependent int `json:"store_dependent"`
+	EvidenceItems  int `json:"evidence_items"` // validated items available from the research run
+	ConflictGroups int `json:"conflict_groups"`
 }
