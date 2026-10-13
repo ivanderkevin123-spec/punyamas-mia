@@ -270,6 +270,9 @@ func Load(root string) (*Config, error) {
 	if v := os.Getenv("MIA_DATA_DIR"); v != "" {
 		cfg.Paths.DataDir = expandHome(v)
 	}
+	if v := os.Getenv("MIA_REPORTS_DIR"); v != "" {
+		cfg.Paths.ReportsDir = expandHome(v)
+	}
 	h := sha256.New()
 	raw := map[string][]byte{}
 	for _, name := range files {

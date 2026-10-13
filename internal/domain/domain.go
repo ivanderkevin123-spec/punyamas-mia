@@ -220,8 +220,10 @@ type RunSummary struct {
 	Warnings       []string      `json:"warnings"`
 	Errors         []string      `json:"errors"`
 	Drift          []DriftEntry  `json:"drift"`
-	CostUSD        float64       `json:"cost_usd"`
-	CostMeasurable bool          `json:"cost_measurable"`
+	CostUSD          float64       `json:"cost_usd"`
+	CostActualUSD    float64       `json:"cost_actual_usd"`
+	CostUncertainUSD float64       `json:"cost_uncertain_usd"`
+	CostMeasurable   bool          `json:"cost_measurable"`
 	ReportMarkdown string        `json:"report_markdown,omitempty"`
 	ReportHTML     string        `json:"report_html,omitempty"`
 	DurationS      float64       `json:"duration_s"`

@@ -18,7 +18,7 @@ code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px}
 </head>
 <body>
 <h1>{{.Title}} — {{.BrandName}}</h1>
-{{if .Failed}}<div class="fail">RUN GAGAL / TIDAK LENGKAP. Laporan ini tidak boleh dibaca sebagai hasil riset yang selesai.</div>{{end}}
+{{if .Failed}}<div class="fail">RUN GAGAL / TIDAK LENGKAP. Laporan ini tidak boleh dibaca sebagai hasil riset yang selesai.</div>{{else if .Incomplete}}<div class="fail">RUN BELUM LENGKAP. Tidak semua langkah dijalankan; butir yang belum divalidasi tercantum terpisah di bagian 7.</div>{{end}}
 <table><tr><th>Run</th><th>Status</th><th>Dibuat (UTC)</th><th>Selesai (UTC)</th><th>Penyedia AI</th><th>Masukan</th><th>Konfigurasi</th></tr>
 <tr><td><code>{{.RunID}}</code></td><td><strong>{{.StatusLabel}}</strong></td><td>{{.CreatedAt}}</td><td>{{.FinishedAt}}</td><td>{{.Provider}}</td><td><code>{{.Inputs}}</code></td><td><code>{{.ConfigHash}}</code></td></tr></table>
 <p>Semua temuan berstatus <strong>draf untuk ditinjau manusia</strong>. Fakta bersumber, interpretasi model, dan hipotesis dipisahkan.</p>
@@ -26,9 +26,9 @@ code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px}
 <h2>1. Ringkasan eksekutif</h2>
 <ul>
 <li>Sumber: {{.Counts.Sources}} · Butir diimpor: {{.Counts.ItemsImported}} (dipakai ulang: {{.Counts.ItemsReused}}) · Duplikat: {{.Counts.Duplicates}} · Mencurigakan: {{.Counts.Suspicious}}</li>
-<li>Fakta bersumber: {{.Counts.Facts}} · Interpretasi model: {{.Counts.Interpretations}} · Hipotesis: {{.Counts.Hypotheses}} · Ditolak validasi: {{.Counts.Rejected}}</li>
+<li>Fakta bersumber: {{.Counts.Facts}} · Interpretasi model: {{.Counts.Interpretations}} · Hipotesis: {{.Counts.Hypotheses}} · Ditolak validasi: {{.Counts.Rejected}} · Belum divalidasi: {{len .Unvalidated}}</li>
 <li>Temuan agen: {{.Counts.AgentFindings}} diterima, {{.Counts.AgentRejected}} ditolak · Tanda klaim terlarang: {{.Counts.ClaimFlags}}</li>
-<li>Biaya: {{.CostTotal}}{{if not .CostMeasurable}} (<strong>tidak dapat diukur sepenuhnya; estimasi</strong>){{end}} · Plafon bulanan: {{.MonthlyCeiling}}</li>
+<li>Biaya: {{.CostTotal}} (aktual {{.CostActual}}, estimasi tidak pasti {{.CostUncertain}}){{if not .CostMeasurable}} — <strong>biaya tidak dapat diukur sepenuhnya</strong>{{end}} · Plafon bulanan: {{.MonthlyCeiling}}</li>
 </ul>
 
 <h2>2. Status langkah</h2>
@@ -63,11 +63,12 @@ code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px}
 <table><tr><th>Nama</th><th>Referensi</th><th>Jenis</th><th>Diambil</th><th>Terbit</th></tr>
 {{range .Sources}}<tr><td>{{.Name}}</td><td><code>{{.Reference}}</code></td><td>{{.Type}}</td><td>{{.RetrievedAt}}</td><td>{{.PublishedAt}}</td></tr>{{end}}</table>
 
-<h2>7. Ditolak validasi, duplikat, dan konten mencurigakan</h2>
+<h2>7. Belum divalidasi, ditolak, duplikat, dan konten mencurigakan</h2>
+{{if .Unvalidated}}<h3>Belum divalidasi ({{len .Unvalidated}}) — bukan temuan; langkah validasi belum dijalankan</h3><ul>{{range .Unvalidated}}<li>[{{.Ref}}] {{.Title}} — status: {{.Status}} ({{.Kind}}, kualitas {{.Quality}})</li>{{end}}</ul>{{end}}
 {{if .Rejected}}<h3>Ditolak ({{len .Rejected}})</h3><ul>{{range .Rejected}}<li><strong>[{{.Ref}}] {{.Title}}</strong> ({{.Kind}}): {{range $i, $e := .Errors}}{{if $i}}; {{end}}{{$e}}{{end}}</li>{{end}}</ul>{{end}}
 {{if .Dups}}<h3>Duplikat ({{len .Dups}})</h3><ul>{{range .Dups}}<li>[{{.Ref}}] {{.Title}} → duplikat dari <code>{{.DuplicateOf}}</code></li>{{end}}</ul>{{end}}
 {{if .Susp}}<h3>Konten mencurigakan — dikecualikan ({{len .Susp}})</h3><ul>{{range .Susp}}<li>[{{.Ref}}] {{.Title}}</li>{{end}}</ul>{{end}}
-{{if and (not .Rejected) (not .Dups) (not .Susp)}}<p class="muted">Tidak ada.</p>{{end}}
+{{if and (not .Unvalidated) (not .Rejected) (not .Dups) (not .Susp)}}<p class="muted">Tidak ada.</p>{{end}}
 
 <h2>8. Aset ruang kerja Punyamas (baca-saja)</h2>
 {{if not .Drift}}<p class="muted">Tidak diperiksa pada run ini.</p>{{end}}
@@ -77,7 +78,7 @@ code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px}
 <table><tr><th>Eksekusi</th><th>Agen</th><th>Penyedia</th><th>Model</th><th>Hasil</th><th>Token masuk</th><th>Token keluar</th><th>Biaya</th></tr>
 {{range .Execs}}<tr><td><code>{{.ID}}</code></td><td>{{.Agent}}</td><td>{{.Provider}}</td><td>{{.Model}}</td><td>{{.Outcome}}</td><td>{{.InputTokens}}</td><td>{{.OutputTokens}}</td><td>{{.Cost}}</td></tr>{{end}}
 {{if not .Execs}}<tr><td colspan="8">tidak ada panggilan</td></tr>{{end}}</table>
-<p>Total biaya run: <strong>{{.CostTotal}}</strong>{{if not .CostMeasurable}} — biaya tidak dapat diukur sepenuhnya; estimasi digunakan{{end}}.</p>
+<p>Total biaya run: <strong>{{.CostTotal}}</strong> (aktual {{.CostActual}}; estimasi tidak pasti {{.CostUncertain}}){{if not .CostMeasurable}} — biaya tidak dapat diukur sepenuhnya; panggilan yang gagal atau tidak terukur dibukukan sebagai estimasi{{end}}.</p>
 
 <h2>10. Asumsi dan ketidakpastian</h2>
 <ul><li>Kualitas bukti: A = sumber primer bertanggal yang diamati langsung; B = sumber sekunder kredibel; C = anekdot/forum/tidak terverifikasi; D = tanpa bukti eksternal.</li>

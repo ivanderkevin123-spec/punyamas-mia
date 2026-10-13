@@ -103,12 +103,15 @@ type stepDef struct {
 }
 
 type runCtx struct {
-	run     *domain.Run
-	steps   map[string]*domain.Step
-	opts    Options
-	sum     *domain.RunSummary
-	failed  bool
-	stopped bool
+	run        *domain.Run
+	steps      map[string]*domain.Step
+	opts       Options
+	sum        *domain.RunSummary
+	prev       *domain.RunSummary // summary of the previous invocation when resuming
+	skipped    map[string]bool    // steps already completed and skipped in this invocation
+	failed     bool
+	stopped    bool
+	costWarned bool
 }
 
 func (rc *runCtx) warn(format string, a ...any) {
@@ -145,6 +148,7 @@ func (o *Orchestrator) RunResearch(ctx context.Context, opts Options) (*domain.R
 	now := o.ts()
 	var run *domain.Run
 	var steps []*domain.Step
+	var prev *domain.RunSummary
 	if opts.ResumeID != "" {
 		r, err := o.d.Store.GetRun(ctx, opts.ResumeID)
 		if err != nil {
@@ -160,6 +164,10 @@ func (o *Orchestrator) RunResearch(ctx context.Context, opts Options) (*domain.R
 		}
 		if opts.FixtureKey == "" {
 			opts.FixtureKey = in.FixtureKey
+		}
+		var ps domain.RunSummary
+		if json.Unmarshal([]byte(r.SummaryJSON), &ps) == nil && ps.RunID != "" {
+			prev = &ps
 		}
 		steps, err = o.d.Store.StepsForRun(ctx, r.ID)
 		if err != nil {
@@ -200,9 +208,18 @@ func (o *Orchestrator) RunResearch(ctx context.Context, opts Options) (*domain.R
 			return nil, err
 		}
 	}
-	rc := &runCtx{run: run, steps: map[string]*domain.Step{}, opts: opts, sum: &domain.RunSummary{RunID: run.ID, Kind: run.Kind, CostMeasurable: true}}
+	rc := &runCtx{run: run, steps: map[string]*domain.Step{}, opts: opts, prev: prev, skipped: map[string]bool{},
+		sum: &domain.RunSummary{RunID: run.ID, Kind: run.Kind, CostMeasurable: true}}
 	for _, st := range steps {
 		rc.steps[st.Name] = st
+	}
+	if prev != nil {
+		for _, w := range prev.Warnings {
+			if !strings.HasPrefix(w, "[sebelumnya] ") {
+				w = "[sebelumnya] " + w
+			}
+			rc.sum.Warnings = append(rc.sum.Warnings, w)
+		}
 	}
 	o.d.Log.Info("run started", "run_id", run.ID, "resume", opts.ResumeID != "", "inputs", opts.InputsDir, "provider", run.ProviderName)
 
@@ -211,7 +228,9 @@ func (o *Orchestrator) RunResearch(ctx context.Context, opts Options) (*domain.R
 		if st == nil {
 			return nil, fmt.Errorf("langkah %s tidak ada pada run %s", def.name, run.ID)
 		}
-		if st.Status == domain.StepCompleted && !opts.Force {
+		// The report is always re-rendered so a resumed run never keeps a stale failure report.
+		if st.Status == domain.StepCompleted && !opts.Force && def.name != StepReport {
+			rc.skipped[def.name] = true
 			rc.sum.Steps = append(rc.sum.Steps, domain.StepSummary{Name: st.Name, Status: st.Status, Attempts: st.Attempts})
 			continue
 		}
@@ -224,7 +243,15 @@ func (o *Orchestrator) RunResearch(ctx context.Context, opts Options) (*domain.R
 			continue
 		}
 		if def.name == StepReport {
+			// Counts and costs come from persisted data so the report matches the stored summary (A3, A7).
+			if err := o.refreshCounts(ctx, rc); err != nil {
+				return nil, err
+			}
+			if err := o.refreshCosts(ctx, rc); err != nil {
+				return nil, err
+			}
 			rc.sum.Status = o.provisionalStatus(rc)
+			rc.run.FinishedAt = o.ts()
 		}
 		o.execStep(ctx, rc, def)
 		if opts.Until != "" && def.name == opts.Until {
@@ -315,34 +342,127 @@ func (o *Orchestrator) provisionalStatus(rc *runCtx) string {
 	}
 }
 
-func (o *Orchestrator) finalize(ctx context.Context, rc *runCtx) (*domain.RunSummary, error) {
-	rc.sum.Status = o.provisionalStatus(rc)
+// CountsFromStore derives every item- and source-based count from persisted
+// rows linked to the run, so summaries do not depend on which steps executed in
+// the current process (A3). Process-only counters (files, agent rejections) are
+// not derivable from the store and are carried separately.
+func (o *Orchestrator) CountsFromStore(ctx context.Context, runID string) (domain.Counts, error) {
+	var c domain.Counts
+	items, err := o.d.Store.ItemsForRun(ctx, runID)
+	if err != nil {
+		return c, err
+	}
+	for _, it := range items {
+		if it.Origin == domain.OriginAgent {
+			if it.RunID == runID {
+				c.AgentFindings++
+			}
+		} else if it.RunID == runID {
+			c.ItemsImported++
+		} else {
+			c.ItemsReused++
+		}
+		if it.Suspicious {
+			c.Suspicious++
+		}
+		switch it.Status {
+		case domain.ItemDuplicate:
+			c.Duplicates++
+		case domain.ItemRejected:
+			c.Rejected++
+		case domain.ItemValidated:
+			switch it.Kind {
+			case domain.KindFact:
+				c.Facts++
+			case domain.KindInterpretation:
+				c.Interpretations++
+			case domain.KindHypothesis:
+				c.Hypotheses++
+			}
+		}
+		if it.ClaimCheckJSON != "" {
+			var cc claimCheckJSON
+			if json.Unmarshal([]byte(it.ClaimCheckJSON), &cc) == nil && len(cc.Claims) > 0 {
+				c.ClaimFlags++
+			}
+		}
+	}
+	srcs, err := o.d.Store.SourcesForRun(ctx, runID)
+	if err != nil {
+		return c, err
+	}
+	c.Sources = len(srcs)
+	return c, nil
+}
+
+// refreshCounts replaces the summary counts with store-derived values, keeping
+// process-only counters from this invocation or, for skipped steps, from the previous one.
+func (o *Orchestrator) refreshCounts(ctx context.Context, rc *runCtx) error {
+	c, err := o.CountsFromStore(ctx, rc.run.ID)
+	if err != nil {
+		return err
+	}
+	c.FilesImported, c.FilesRejected, c.AgentRejected = rc.sum.Counts.FilesImported, rc.sum.Counts.FilesRejected, rc.sum.Counts.AgentRejected
+	if rc.prev != nil {
+		if rc.skipped[StepImport] {
+			c.FilesImported, c.FilesRejected = rc.prev.Counts.FilesImported, rc.prev.Counts.FilesRejected
+		}
+		if rc.skipped[StepAgent] {
+			c.AgentRejected = rc.prev.Counts.AgentRejected
+		}
+	}
+	rc.sum.Counts = c
+	return nil
+}
+
+// refreshCosts splits the ledger for the run into actual and uncertain (estimated) spend (A7).
+func (o *Orchestrator) refreshCosts(ctx context.Context, rc *runCtx) error {
 	costs, err := o.d.Store.CostsForRun(ctx, rc.run.ID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	total := 0.0
+	actual, uncertain := 0.0, 0.0
+	for _, c := range costs {
+		v := 0.0
+		if c.CostUSD != nil {
+			v = *c.CostUSD
+		}
+		if c.Estimated {
+			uncertain += v
+		} else {
+			actual += v
+		}
+	}
+	rc.sum.CostActualUSD = actual
+	rc.sum.CostUncertainUSD = uncertain
+	rc.sum.CostUSD = actual + uncertain
 	measurable := true
 	for _, c := range costs {
-		if c.CostUSD != nil {
-			total += *c.CostUSD
-		}
 		if c.Estimated {
 			measurable = false
 		}
 	}
-	rc.sum.CostUSD = total
 	rc.sum.CostMeasurable = measurable
-	if !measurable {
-		rc.warn("biaya tidak dapat diukur sepenuhnya; estimasi digunakan untuk sebagian panggilan")
+	if !measurable && !rc.costWarned {
+		rc.costWarned = true
+		rc.warn("biaya tidak dapat diukur sepenuhnya: USD %.4f dibukukan sebagai estimasi tidak pasti (panggilan gagal, habis waktu, atau penggunaan tak terukur)", uncertain)
 	}
-	if srcs, err := o.d.Store.SourcesForRun(ctx, rc.run.ID); err == nil {
-		rc.sum.Counts.Sources = len(srcs)
+	return nil
+}
+
+func (o *Orchestrator) finalize(ctx context.Context, rc *runCtx) (*domain.RunSummary, error) {
+	if err := o.refreshCounts(ctx, rc); err != nil {
+		return nil, err
 	}
+	if err := o.refreshCosts(ctx, rc); err != nil {
+		return nil, err
+	}
+	rc.sum.Status = o.provisionalStatus(rc)
 	rc.run.FinishedAt = o.ts()
 	rc.run.Status = rc.sum.Status
+	total := rc.sum.CostUSD
 	rc.run.CostUSDTotal = &total
-	rc.run.CostMeasurable = measurable
+	rc.run.CostMeasurable = rc.sum.CostMeasurable
 	if created, err := time.Parse(time.RFC3339, rc.run.CreatedAt); err == nil {
 		rc.sum.DurationS = o.d.Now().UTC().Sub(created).Seconds()
 	}
@@ -351,7 +471,7 @@ func (o *Orchestrator) finalize(ctx context.Context, rc *runCtx) (*domain.RunSum
 	if err := o.d.Store.UpdateRun(ctx, rc.run); err != nil {
 		return nil, err
 	}
-	o.d.Log.Info("run finished", "run_id", rc.run.ID, "status", rc.sum.Status, "cost_usd", total, "warnings", len(rc.sum.Warnings), "errors", len(rc.sum.Errors))
+	o.d.Log.Info("run finished", "run_id", rc.run.ID, "status", rc.sum.Status, "cost_usd", total, "cost_uncertain_usd", rc.sum.CostUncertainUSD, "warnings", len(rc.sum.Warnings), "errors", len(rc.sum.Errors))
 	return rc.sum, nil
 }
 
@@ -417,24 +537,18 @@ func (o *Orchestrator) stepImport(ctx context.Context, rc *runCtx) error {
 				Title: it.Title, Statement: it.Statement, Language: it.Language, Quality: it.Quality, Status: domain.ItemImported, ContentHash: h, CreatedAt: now}
 			if ok, m := validate.Suspicious(it.Title + " " + it.Statement + " " + it.Excerpt); ok {
 				item.Suspicious = true
-				rc.sum.Counts.Suspicious++
 				rc.warn("konten mencurigakan pada %s (%q); dikecualikan dari masukan agen", it.Ref, m)
 			}
-			if err := o.d.Store.InsertItem(ctx, item); err != nil {
-				return err
-			}
-			if err := o.d.Store.LinkRunItem(ctx, rc.run.ID, item.ID); err != nil {
-				return err
-			}
-			rc.sum.Counts.ItemsImported++
-			ev := &domain.Evidence{ID: o.d.IDs.New("ev"), ItemID: item.ID, SourceID: src.ID, Excerpt: it.Excerpt, Locator: fmt.Sprintf("%s bagian %d", n.File, it.Row), RetrievedAt: n.RetrievedAt, PublishedAt: n.PublishedAt}
+			ev := &domain.Evidence{ID: o.d.IDs.New("ev"), SourceID: src.ID, Excerpt: it.Excerpt, Locator: fmt.Sprintf("%s bagian %d", n.File, it.Row), RetrievedAt: n.RetrievedAt, PublishedAt: n.PublishedAt}
 			if ev.Excerpt == "" {
 				ev.Excerpt = it.Statement
 				ev.Note = "hipotesis: kutipan sama dengan pernyataan"
 			}
-			if err := o.d.Store.InsertEvidence(ctx, ev); err != nil {
+			// Item, run link and evidence are committed atomically (A2).
+			if err := o.d.Store.InsertItemWithEvidence(ctx, rc.run.ID, item, []*domain.Evidence{ev}); err != nil {
 				return err
 			}
+			rc.sum.Counts.ItemsImported++
 		}
 	}
 	rc.sum.Counts.FilesImported = len(files)
@@ -602,19 +716,13 @@ func (o *Orchestrator) deriveFAQItems(ctx context.Context, runID string, a confi
 		}
 		item := &domain.Item{ID: o.d.IDs.New("item"), RunID: runID, Ref: ref, Origin: domain.OriginWorkspace, Kind: domain.KindHypothesis, TopicKey: "pertanyaan_pelanggan",
 			Title: f.Question, Statement: statement, Language: "id", Quality: "D", Status: domain.ItemImported, ContentHash: h, CreatedAt: now}
-		if err := o.d.Store.InsertItem(ctx, item); err != nil {
-			return err
-		}
-		if err := o.d.Store.LinkRunItem(ctx, runID, item.ID); err != nil {
-			return err
-		}
 		answer := f.Answer
 		if len(answer) > 1000 {
 			answer = answer[:1000]
 		}
-		ev := &domain.Evidence{ID: o.d.IDs.New("ev"), ItemID: item.ID, SourceID: src.ID, Excerpt: answer, Locator: fmt.Sprintf("Pertanyaan umum #%d", f.N), RetrievedAt: now,
+		ev := &domain.Evidence{ID: o.d.IDs.New("ev"), SourceID: src.ID, Excerpt: answer, Locator: fmt.Sprintf("Pertanyaan umum #%d", f.N), RetrievedAt: now,
 			Note: "hipotesis internal dari naskah situs; bukan bukti eksternal"}
-		if err := o.d.Store.InsertEvidence(ctx, ev); err != nil {
+		if err := o.d.Store.InsertItemWithEvidence(ctx, runID, item, []*domain.Evidence{ev}); err != nil {
 			return err
 		}
 		if sum != nil {
@@ -645,7 +753,6 @@ func (o *Orchestrator) stepDedup(ctx context.Context, rc *runCtx) error {
 		if err := o.d.Store.UpdateItem(ctx, it); err != nil {
 			return err
 		}
-		rc.sum.Counts.Duplicates++
 	}
 	return nil
 }
@@ -730,6 +837,8 @@ func (o *Orchestrator) stepAgent(ctx context.Context, rc *runCtx) error {
 		start := time.Now()
 		resp, usage, perr := o.d.Provider.Complete(ctx, req)
 		now := o.ts()
+		// Bookkeeping must succeed even when the step deadline has just expired (A7).
+		bctx := context.WithoutCancel(ctx)
 		exec := &domain.AgentExecution{ID: o.d.IDs.New("exec"), RunID: rc.run.ID, StepID: st.ID, AgentName: research.Name, ProviderName: o.d.Provider.Name(), Model: req.Model,
 			SchemaVersion: research.SchemaVersion, RequestHash: dedup.FileHash([]byte(req.System + "\n" + req.User)), InputTokens: usage.InputTokens, OutputTokens: usage.OutputTokens,
 			CacheReadTokens: usage.CacheReadTokens, CostMeasurable: usage.Measurable, LatencyMS: time.Since(start).Milliseconds(), Attempt: call, Outcome: "pending", CreatedAt: now}
@@ -740,16 +849,27 @@ func (o *Orchestrator) stepAgent(ctx context.Context, rc *runCtx) error {
 				exec.Outcome = "timeout"
 			}
 			exec.ErrorText = perr.Error()
-			_ = o.d.Store.InsertExecution(ctx, exec)
+			exec.CostMeasurable = false
+			if err := o.d.Store.InsertExecution(bctx, exec); err != nil {
+				return err
+			}
 			if provider.Fatal(perr) {
+				// Authentication/billing rejections process no tokens: nothing is booked.
 				return &stepErr{status: domain.StepFailed, err: fmt.Errorf("penyedia menolak (%v); tidak diulang", perr)}
 			}
+			// Outcome unknown: book the pre-call estimate as uncertain cost so repeated failures count against the ceilings (A7).
+			rec, err := o.d.Budget.RecordUncertain(bctx, rc.run.ID, exec.ID, research.Name, o.d.Provider.Name(), req.Model, estIn, estOut, exec.Outcome)
+			if err != nil {
+				return err
+			}
+			exec.CostUSD = rec.CostUSD
+			_ = o.d.Store.UpdateExecution(bctx, exec)
 			return &stepErr{status: domain.StepFailed, err: perr, retryable: provider.Retryable(perr)}
 		}
-		if err := o.d.Store.InsertExecution(ctx, exec); err != nil {
+		if err := o.d.Store.InsertExecution(bctx, exec); err != nil {
 			return err
 		}
-		cost, err := o.d.Budget.Record(ctx, rc.run.ID, exec.ID, research.Name, o.d.Provider.Name(), req.Model, usage, estIn, estOut)
+		cost, err := o.d.Budget.Record(bctx, rc.run.ID, exec.ID, research.Name, o.d.Provider.Name(), req.Model, usage, estIn, estOut)
 		if err != nil {
 			return err
 		}
@@ -804,20 +924,14 @@ func (o *Orchestrator) stepAgent(ctx context.Context, rc *runCtx) error {
 			item := &domain.Item{ID: o.d.IDs.New("item"), RunID: rc.run.ID, Ref: fmt.Sprintf("agent:%s#%d", exec.ID, i+1), Origin: domain.OriginAgent, Kind: f.Kind, TopicKey: f.TopicKey,
 				Title: f.Title, Statement: f.Statement, Rationale: f.Rationale, Language: "id", Quality: quality, Status: domain.ItemImported, ContentHash: dedup.ContentHash(f.Statement),
 				AgentExecutionID: exec.ID, CreatedAt: now}
-			if err := o.d.Store.InsertItem(ctx, item); err != nil {
-				return err
-			}
-			if err := o.d.Store.LinkRunItem(ctx, rc.run.ID, item.ID); err != nil {
-				return err
-			}
+			var evs []*domain.Evidence
 			for _, r := range f.EvidenceRefs {
-				ev := &domain.Evidence{ID: o.d.IDs.New("ev"), ItemID: item.ID, FromItemID: refs[r].ID, Note: "dikutip oleh agen riset", RetrievedAt: now}
-				if err := o.d.Store.InsertEvidence(ctx, ev); err != nil {
-					return err
-				}
+				evs = append(evs, &domain.Evidence{ID: o.d.IDs.New("ev"), FromItemID: refs[r].ID, Note: "dikutip oleh agen riset", RetrievedAt: now})
+			}
+			if err := o.d.Store.InsertItemWithEvidence(ctx, rc.run.ID, item, evs); err != nil {
+				return err
 			}
 		}
-		rc.sum.Counts.AgentFindings += len(valid)
 		rc.sum.Counts.AgentRejected += len(rejected)
 		for _, r := range rejected {
 			rc.warn("temuan agen ditolak: %q: %s", r.Title, strings.Join(r.Reasons, "; "))
@@ -870,12 +984,10 @@ func (o *Orchestrator) stepValidate(ctx context.Context, rc *runCtx) error {
 			res := o.d.Checker.Check(it.Title + " " + it.Statement)
 			if !res.Passes {
 				claims = res.Findings
-				rc.sum.Counts.ClaimFlags++
 			}
 		}
 		if ok, _ := validate.Suspicious(it.Title + " " + it.Statement); ok && !it.Suspicious {
 			it.Suspicious = true
-			rc.sum.Counts.Suspicious++
 		}
 		evs := evid[it.ID]
 		switch it.Kind {
@@ -906,17 +1018,8 @@ func (o *Orchestrator) stepValidate(ctx context.Context, rc *runCtx) error {
 		it.ClaimCheckJSON = string(payload)
 		if len(verrs) > 0 {
 			it.Status = domain.ItemRejected
-			rc.sum.Counts.Rejected++
 		} else {
 			it.Status = domain.ItemValidated
-			switch it.Kind {
-			case domain.KindFact:
-				rc.sum.Counts.Facts++
-			case domain.KindInterpretation:
-				rc.sum.Counts.Interpretations++
-			case domain.KindHypothesis:
-				rc.sum.Counts.Hypotheses++
-			}
 		}
 		if err := o.d.Store.UpdateItem(ctx, it); err != nil {
 			return err

@@ -193,11 +193,7 @@ func (s *Store) FindItem(ctx context.Context, origin, ref, contentHash string) (
 	return it, err
 }
 
-func (s *Store) InsertItem(ctx context.Context, it *domain.Item) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO research_items(`+itemCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		it.ID, it.RunID, it.Ref, it.Origin, it.Kind, nz(it.TopicKey), it.Title, it.Statement, nz(it.Rationale), it.Language, it.Quality, it.Status, it.ContentHash, nz(it.DuplicateOf), nz(it.ConflictGroup), nz(it.ClaimCheckJSON), b2i(it.Suspicious), nz(it.AgentExecutionID), it.CreatedAt)
-	return err
-}
+func (s *Store) InsertItem(ctx context.Context, it *domain.Item) error { return insertItem(ctx, s.db, it) }
 
 func (s *Store) UpdateItem(ctx context.Context, it *domain.Item) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE research_items SET status=?, duplicate_of=?, conflict_group=?, claim_check_json=?, suspicious=?, evidence_quality=? WHERE id=?`,
@@ -205,10 +201,7 @@ func (s *Store) UpdateItem(ctx context.Context, it *domain.Item) error {
 	return err
 }
 
-func (s *Store) LinkRunItem(ctx context.Context, runID, itemID string) error {
-	_, err := s.db.ExecContext(ctx, `INSERT OR IGNORE INTO run_items(run_id, item_id) VALUES (?,?)`, runID, itemID)
-	return err
-}
+func (s *Store) LinkRunItem(ctx context.Context, runID, itemID string) error { return linkRunItem(ctx, s.db, runID, itemID) }
 
 func (s *Store) ItemsForRun(ctx context.Context, runID string) ([]*domain.Item, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+itemCols+` FROM research_items WHERE id IN (SELECT item_id FROM run_items WHERE run_id=?) ORDER BY origin, ref, id`, runID)
@@ -237,11 +230,7 @@ func (s *Store) GetItem(ctx context.Context, id string) (*domain.Item, error) {
 
 // ---- evidence ----
 
-func (s *Store) InsertEvidence(ctx context.Context, e *domain.Evidence) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO evidence(id, item_id, source_id, from_item_id, excerpt, locator, retrieved_at, published_at, note) VALUES (?,?,?,?,?,?,?,?,?)`,
-		e.ID, e.ItemID, nz(e.SourceID), nz(e.FromItemID), nz(e.Excerpt), nz(e.Locator), nz(e.RetrievedAt), nz(e.PublishedAt), nz(e.Note))
-	return err
-}
+func (s *Store) InsertEvidence(ctx context.Context, e *domain.Evidence) error { return insertEvidence(ctx, s.db, e) }
 
 func (s *Store) EvidenceForItems(ctx context.Context, runID string) (map[string][]*domain.Evidence, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, item_id, source_id, from_item_id, excerpt, locator, retrieved_at, published_at, note FROM evidence WHERE item_id IN (SELECT item_id FROM run_items WHERE run_id=?) ORDER BY item_id, id`, runID)
@@ -410,4 +399,81 @@ func (s *Store) UpdateExecution(ctx context.Context, e *domain.AgentExecution) e
 	_, err := s.db.ExecContext(ctx, `UPDATE agent_executions SET outcome=?, error_text=?, cost_usd=?, cost_measurable=? WHERE id=?`,
 		e.Outcome, nz(e.ErrorText), nf(e.CostUSD), b2i(e.CostMeasurable), e.ID)
 	return err
+}
+
+// execer is satisfied by *sql.DB and *sql.Tx.
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func insertItem(ctx context.Context, ex execer, it *domain.Item) error {
+	_, err := ex.ExecContext(ctx, `INSERT INTO research_items(`+itemCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		it.ID, it.RunID, it.Ref, it.Origin, it.Kind, nz(it.TopicKey), it.Title, it.Statement, nz(it.Rationale), it.Language, it.Quality, it.Status, it.ContentHash, nz(it.DuplicateOf), nz(it.ConflictGroup), nz(it.ClaimCheckJSON), b2i(it.Suspicious), nz(it.AgentExecutionID), it.CreatedAt)
+	return err
+}
+
+func linkRunItem(ctx context.Context, ex execer, runID, itemID string) error {
+	_, err := ex.ExecContext(ctx, `INSERT OR IGNORE INTO run_items(run_id, item_id) VALUES (?,?)`, runID, itemID)
+	return err
+}
+
+func insertEvidence(ctx context.Context, ex execer, e *domain.Evidence) error {
+	_, err := ex.ExecContext(ctx, `INSERT INTO evidence(id, item_id, source_id, from_item_id, excerpt, locator, retrieved_at, published_at, note) VALUES (?,?,?,?,?,?,?,?,?)`,
+		e.ID, e.ItemID, nz(e.SourceID), nz(e.FromItemID), nz(e.Excerpt), nz(e.Locator), nz(e.RetrievedAt), nz(e.PublishedAt), nz(e.Note))
+	return err
+}
+
+// InsertItemWithEvidence persists an item, its run link and all its evidence
+// rows in one transaction, so a failure leaves no orphan item behind (A2).
+func (s *Store) InsertItemWithEvidence(ctx context.Context, runID string, it *domain.Item, evs []*domain.Evidence) error {
+	return s.Tx(ctx, func(tx *sql.Tx) error {
+		if err := insertItem(ctx, tx, it); err != nil {
+			return fmt.Errorf("item %s: %w", it.Ref, err)
+		}
+		if runID != "" {
+			if err := linkRunItem(ctx, tx, runID, it.ID); err != nil {
+				return fmt.Errorf("run link %s: %w", it.Ref, err)
+			}
+		}
+		for _, e := range evs {
+			e.ItemID = it.ID
+			if err := insertEvidence(ctx, tx, e); err != nil {
+				return fmt.Errorf("evidence for %s: %w", it.Ref, err)
+			}
+		}
+		return nil
+	})
+}
+
+// FindCostByExecution returns the cost row booked for an execution, if any.
+func (s *Store) FindCostByExecution(ctx context.Context, execID string) (*domain.CostRecord, error) {
+	var c domain.CostRecord
+	var exec, agent sql.NullString
+	var cost sql.NullFloat64
+	var est int
+	err := s.db.QueryRowContext(ctx, `SELECT id, run_id, agent_execution_id, agent_name, category, provider_name, units_json, unit_price_source, cost_usd, estimated, period_month, created_at FROM cost_records WHERE agent_execution_id=? ORDER BY created_at, id LIMIT 1`, execID).
+		Scan(&c.ID, &c.RunID, &exec, &agent, &c.Category, &c.ProviderName, &c.UnitsJSON, &c.UnitPriceSource, &cost, &est, &c.PeriodMonth, &c.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	c.AgentExecutionID, c.AgentName = str(exec), str(agent)
+	c.CostUSD = fptr(cost)
+	c.Estimated = est == 1
+	return &c, nil
+}
+
+// UpdateCost replaces the figures of an existing cost row (reconciliation; never a second row per execution).
+func (s *Store) UpdateCost(ctx context.Context, c *domain.CostRecord) error {
+	res, err := s.db.ExecContext(ctx, `UPDATE cost_records SET units_json=?, unit_price_source=?, cost_usd=?, estimated=?, period_month=? WHERE id=?`,
+		c.UnitsJSON, c.UnitPriceSource, nf(c.CostUSD), b2i(c.Estimated), c.PeriodMonth, c.ID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }

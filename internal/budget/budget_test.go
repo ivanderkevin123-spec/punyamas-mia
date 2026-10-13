@@ -114,3 +114,39 @@ func TestPeriodUsesLedgerTimezone(t *testing.T) {
 		t.Fatalf("period = %s, want 2026-11", p)
 	}
 }
+
+// A7: failed or timed-out calls are booked from the pre-call estimate as
+// uncertain cost; they count against the ceilings; a reconciliation for the
+// same execution replaces the row instead of adding to it.
+func TestRecordUncertainCountsAgainstCeilings(t *testing.T) {
+	g, st := newGate(t)
+	ctx := context.Background()
+	_ = st.InsertExecution(ctx, &domain.AgentExecution{ID: "x1", RunID: "run_1", AgentName: "research", ProviderName: "mock", SchemaVersion: "v1", RequestHash: "h", Outcome: "timeout", CreatedAt: "t"})
+	rec, err := g.RecordUncertain(ctx, "run_1", "x1", "research", "mock", "claude-opus-5-5", 100_000, 10_000, "timeout")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !rec.Estimated || rec.UnitPriceSource != "uncertain:timeout" || rec.CostUSD == nil || *rec.CostUSD != 0.6 {
+		t.Fatalf("uncertain record %+v", rec)
+	}
+	d, _ := g.Allow(ctx, "run_1", "research", "claude-opus-5-5", 100_000, 10_000)
+	if d.Allowed || !strings.Contains(d.Reason, "per agen") {
+		t.Fatalf("uncertain spend must count against the agent ceiling: %+v", d)
+	}
+	// Reconciliation with actual usage replaces the uncertain row (no double counting).
+	actual, err := g.Record(ctx, "run_1", "x1", "research", "mock", "claude-opus-5-5", provider.Usage{InputTokens: 10_000, OutputTokens: 1_000, Measurable: true}, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual.ID != rec.ID || actual.Estimated || *actual.CostUSD != 0.06 {
+		t.Fatalf("reconciled record %+v", actual)
+	}
+	n, _ := st.CountRows(ctx, "cost_records")
+	spent, _ := st.SpentRun(ctx, "run_1")
+	if n != 1 || spent != 0.06 {
+		t.Fatalf("rows=%d spent=%v; want 1 row and 0.06", n, spent)
+	}
+	if _, err := g.RecordUncertain(ctx, "run_1", "", "research", "mock", "unknown-model", 1, 1, "error"); err == nil {
+		t.Fatal("unknown model must be rejected")
+	}
+}

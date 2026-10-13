@@ -2,8 +2,10 @@ package orchestrator_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -195,6 +197,9 @@ func TestWorkflow_FatalProviderErrorNotRetried(t *testing.T) {
 	if sum.Status != domain.RunFailed || m.Calls() != 1 {
 		t.Fatalf("auth errors must not be retried: status=%s calls=%d", sum.Status, m.Calls())
 	}
+	if n, _ := e.st.CountRows(context.Background(), "cost_records"); n != 0 {
+		t.Fatalf("auth rejections process no tokens and must book nothing, got %d cost rows", n)
+	}
 }
 
 func TestWorkflow_TimeoutEnforced(t *testing.T) {
@@ -252,8 +257,18 @@ func TestWorkflow_ResumeContinuesFromFailedStep(t *testing.T) {
 	if second.RunID != first.RunID || second.Status != domain.RunCompletedWithWarnings {
 		t.Fatalf("resume: %+v", second)
 	}
-	if e.step(t, first.RunID, orchestrator.StepImport).Attempts != 1 || second.Counts.ItemsImported != 0 || second.Counts.ItemsReused != 0 {
+	if e.step(t, first.RunID, orchestrator.StepImport).Attempts != 1 {
 		t.Fatal("completed steps must not be re-executed on resume")
+	}
+	// A3: counts are rebuilt from persisted data, not from the steps executed in this invocation.
+	if second.Counts.ItemsImported != 13 || second.Counts.ItemsReused != 0 || second.Counts.Sources != 4 || second.Counts.FilesImported != 3 || second.Counts.Hypotheses != 9 {
+		t.Fatalf("resumed summary counts not rebuilt from store: %+v", second.Counts)
+	}
+	if md := e.report(t, first.RunID); !strings.Contains(md, "Butir diimpor: 13") || !strings.Contains(md, "Fakta bersumber (5)") {
+		t.Fatal("resumed report does not match stored counts")
+	}
+	if !strings.Contains(strings.Join(second.Warnings, "\n"), "[sebelumnya]") {
+		t.Fatal("warnings from the interrupted invocation should be carried over and labelled")
 	}
 	if good.Calls() != 1 || e.step(t, first.RunID, orchestrator.StepAgent).Status != domain.StepCompleted {
 		t.Fatalf("agent step should run once on resume: calls=%d", good.Calls())
@@ -431,5 +446,144 @@ func TestIsStale(t *testing.T) {
 	run.Status = domain.RunCompleted
 	if orchestrator.IsStale(run, fixedNow, 0) {
 		t.Fatal("completed runs are never stale")
+	}
+}
+
+// A clean run: fixture without the intentionally invalid finding, no warnings, status completed.
+func TestWorkflow_CleanCompleted(t *testing.T) {
+	e := newEnv(t, nil)
+	sum, err := e.orch.RunResearch(context.Background(), orchestrator.Options{InputsDir: e.sample(), FixtureKey: "clean"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sum.Status != domain.RunCompleted || len(sum.Warnings) != 0 || len(sum.Errors) != 0 {
+		t.Fatalf("status=%s warnings=%v errors=%v", sum.Status, sum.Warnings, sum.Errors)
+	}
+	if sum.Counts.AgentFindings != 2 || sum.Counts.AgentRejected != 0 || sum.Counts.Interpretations != 1 || sum.Counts.Hypotheses != 9 {
+		t.Fatalf("counts %+v", sum.Counts)
+	}
+	if md := e.report(t, sum.RunID); !strings.Contains(md, "| **Selesai** |") || strings.Contains(md, "RUN ") {
+		t.Fatal("clean run report should show Selesai without any failure banner")
+	}
+}
+
+// A3: summary counts equal store-derived counts and the report repeats them.
+func TestWorkflow_SummaryCountsMatchStoreAndReport(t *testing.T) {
+	e := newEnv(t, nil)
+	ctx := context.Background()
+	sum, err := e.orch.RunResearch(ctx, orchestrator.Options{InputsDir: e.sample()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromStore, err := e.orch.CountsFromStore(ctx, sum.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fromStore.FilesImported, fromStore.FilesRejected, fromStore.AgentRejected = sum.Counts.FilesImported, sum.Counts.FilesRejected, sum.Counts.AgentRejected
+	if fromStore != sum.Counts {
+		t.Fatalf("summary %+v != store %+v", sum.Counts, fromStore)
+	}
+	run, _ := e.st.GetRun(ctx, sum.RunID)
+	var stored domain.RunSummary
+	if err := json.Unmarshal([]byte(run.SummaryJSON), &stored); err != nil || stored.Counts != sum.Counts {
+		t.Fatalf("stored summary differs: %+v err=%v", stored.Counts, err)
+	}
+	md := e.report(t, sum.RunID)
+	for _, want := range []string{
+		fmt.Sprintf("Sumber: %d", sum.Counts.Sources),
+		fmt.Sprintf("Butir diimpor: %d (dipakai ulang: %d)", sum.Counts.ItemsImported, sum.Counts.ItemsReused),
+		fmt.Sprintf("Fakta bersumber: %d", sum.Counts.Facts),
+		fmt.Sprintf("## 3. Fakta bersumber (%d)", sum.Counts.Facts),
+		fmt.Sprintf("## 4. Interpretasi model (%d)", sum.Counts.Interpretations),
+		fmt.Sprintf("## 5. Hipotesis (%d)", sum.Counts.Hypotheses),
+	} {
+		if !strings.Contains(md, want) {
+			t.Errorf("report lacks %q", want)
+		}
+	}
+	if sum.Counts.Sources != 4 || sum.Counts.Duplicates != 0 || sum.Counts.ItemsImported != 13 {
+		t.Fatalf("unexpected counts %+v", sum.Counts)
+	}
+}
+
+// A6: a run stopped before validation lists every item as unvalidated, none as facts.
+func TestWorkflow_UntilReportSeparatesUnvalidated(t *testing.T) {
+	e := newEnv(t, nil)
+	sum, _ := e.orch.RunResearch(context.Background(), orchestrator.Options{InputsDir: e.sample(), Until: orchestrator.StepDedup})
+	if sum.Status != domain.RunPartial || sum.Counts.Facts != 0 {
+		t.Fatalf("status=%s counts=%+v", sum.Status, sum.Counts)
+	}
+	md := e.report(t, sum.RunID)
+	for _, want := range []string{"RUN BELUM LENGKAP", "## 3. Fakta bersumber (0)", "## 5. Hipotesis (0)", "### Belum divalidasi (13)", "Sebagian (dihentikan sesuai permintaan)"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("report lacks %q", want)
+		}
+	}
+}
+
+// A7: repeated timeouts book uncertain cost and are stopped by the ceilings before the retry budget is exhausted.
+func TestWorkflow_RepeatedTimeoutsCannotBypassCeiling(t *testing.T) {
+	e := newEnv(t, func(cfg *config.Config) {
+		cfg.Limits.Provider.Model = "claude-opus-5-5"
+		cfg.Limits.Caps.MaxOutputTokens = 100000 // estimate ≈ USD 2.0 per call
+		cfg.Limits.Caps.RunCeilingUSD = 4.5
+		cfg.Limits.Caps.AgentCeilingUSD = 4.5
+		cfg.Limits.Caps.StepTimeoutS["research_agent"] = 1
+	})
+	m := mock.New(e.cfg.Limits.Provider.Mock.FixturesDir)
+	m.Hang = true
+	sum, _ := e.build(m).RunResearch(context.Background(), orchestrator.Options{InputsDir: e.sample()})
+	st := e.step(t, sum.RunID, orchestrator.StepAgent)
+	if sum.Status != domain.RunFailed || st.Status != domain.StepBudgetExhausted {
+		t.Fatalf("status=%s step=%+v errors=%v", sum.Status, st, sum.Errors)
+	}
+	costs, _ := e.st.CostsForRun(context.Background(), sum.RunID)
+	if len(costs) != 2 {
+		t.Fatalf("expected 2 uncertain bookings before the ceiling blocked the third call, got %d", len(costs))
+	}
+	for _, c := range costs {
+		if !c.Estimated || !strings.HasPrefix(c.UnitPriceSource, "uncertain:timeout") || c.CostUSD == nil || *c.CostUSD <= 0 {
+			t.Fatalf("cost row not booked as uncertain estimate: %+v", c)
+		}
+	}
+	spent, _ := e.st.SpentRun(context.Background(), sum.RunID)
+	if spent > e.cfg.Limits.Caps.RunCeilingUSD {
+		t.Fatalf("spent %.4f exceeds the run ceiling %.2f", spent, e.cfg.Limits.Caps.RunCeilingUSD)
+	}
+	if sum.CostMeasurable || sum.CostUncertainUSD != spent || sum.CostActualUSD != 0 {
+		t.Fatalf("summary cost split wrong: %+v", sum)
+	}
+}
+
+// A7: one retryable failure then success books one uncertain row and one actual row; the run succeeds with an explicit warning.
+func TestWorkflow_RetryThenSuccessBooksUncertainCost(t *testing.T) {
+	e := newEnv(t, func(cfg *config.Config) { cfg.Limits.Provider.Model = "claude-opus-5-5" })
+	m := mock.New(e.cfg.Limits.Provider.Mock.FixturesDir)
+	m.Fail = &provider.Error{Kind: provider.KindServer, Err: errors.New("503")}
+	m.FailAttempts = 1
+	sum, _ := e.build(m).RunResearch(context.Background(), orchestrator.Options{InputsDir: e.sample(), FixtureKey: "clean"})
+	if sum.Status != domain.RunCompletedWithWarnings || m.Calls() != 2 {
+		t.Fatalf("status=%s calls=%d errors=%v", sum.Status, m.Calls(), sum.Errors)
+	}
+	costs, _ := e.st.CostsForRun(context.Background(), sum.RunID)
+	if len(costs) != 2 {
+		t.Fatalf("expected 2 cost rows (uncertain + actual), got %d", len(costs))
+	}
+	estimated, actual := 0, 0
+	for _, c := range costs {
+		if c.Estimated {
+			estimated++
+		} else {
+			actual++
+		}
+	}
+	if estimated != 1 || actual != 1 || sum.CostMeasurable || sum.CostUncertainUSD <= 0 || sum.CostActualUSD != 0 {
+		t.Fatalf("estimated=%d actual=%d summary=%+v", estimated, actual, sum)
+	}
+	if !strings.Contains(strings.Join(sum.Warnings, "\n"), "estimasi tidak pasti") {
+		t.Fatalf("warning about uncertain cost missing: %v", sum.Warnings)
+	}
+	if md := e.report(t, sum.RunID); !strings.Contains(md, "estimasi tidak pasti") || !strings.Contains(md, "(estimasi)") {
+		t.Fatal("report should show the uncertain cost split")
 	}
 }

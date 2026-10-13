@@ -70,3 +70,18 @@ Legend for *Test method*: U = unit test, I = integration test (store + orchestra
 ## 6. Verification record
 
 Each phase report must list, per criterion touched: status, evidence (test name or command output), and date. Criteria must never be marked `passed` from reasoning alone.
+
+## 8. Remediation record — Phase 2 audit findings (2026-10-13)
+
+| Finding | Fix | Evidence (tests) | Status |
+|---|---|---|---|
+| A1 dependency checksums not independently verified | Independent verification run on 2026-10-13 by the pre-commit audit (not rerun by this documentation update): temporary project copy, fresh module cache, GOTOOLCHAIN=local, official proxy, GOSUMDB=sum.golang.org, TLS verification enabled; repeatable procedure in `operations.md` §1 | Checksum database consulted (sumdb lookup cache written, 30 lookups); all 28 committed `go.sum` lines present in the independently generated file with identical hashes, including `golang.org/x/mod v0.42.0` and `golang.org/x/tools v0.52.0`; no same-module/version hash conflict; 32 extra generated lines are test dependencies of dependencies, not mismatches; project `go.mod`/`go.sum` unchanged | **PASS** (per the pre-commit audit report; Phase 2 commit approval and Phase 3 authorization remain separate, not granted) |
+| A2 non-atomic item/evidence writes | `Store.InsertItemWithEvidence` (item + run link + evidence in one transaction) used at all three call sites | `TestInsertItemWithEvidenceIsAtomic` (fault injection via foreign-key violation, recovery re-import) | passed |
+| A3 resumed runs reported zero counts | counts rebuilt from the store before the report and at finalize; process-only counters and warnings carried over from the previous invocation; report always re-rendered on resume | `TestWorkflow_ResumeContinuesFromFailedStep`, `TestWorkflow_SummaryCountsMatchStoreAndReport`, `TestWorkflow_CleanCompleted` | passed |
+| A4 unescaped Markdown | `text`/`cell`/`code` template helpers (backslash-escape Markdown punctuation, collapse newlines, no raw HTML or links) applied to every untrusted field | `TestMarkdownEscapesHostileValues`, `TestMDHelpers`, `TestHTMLEscapesAndSeparatesStatuses` | passed |
+| A5 implicit `-mod=mod` | Makefile uses read-only module mode; explicit `make tidy`; `make test`/`test-race` fail if `go.mod`/`go.sum` change; `make modcheck` | `make test` output 2026-10-13 (hashes identical before/after) | passed |
+| A6 unvalidated items under factual headings | factual sections render validated items only; "Belum divalidasi" section with status labels; "RUN BELUM LENGKAP" banner for partial runs | `TestMarkdownSectionsOnlyShowValidatedItems`, `TestWorkflow_UntilReportSeparatesUnvalidated` | passed |
+| A7 failed calls not booked | `Budget.RecordUncertain` books the pre-call estimate as `uncertain:<reason>` for non-fatal failures; one row per execution (reconciliation replaces); summary and report split actual vs uncertain; bookkeeping on a non-cancelled context | `TestRecordUncertainCountsAgainstCeilings`, `TestCostUpsertByExecution`, `TestWorkflow_RepeatedTimeoutsCannotBypassCeiling`, `TestWorkflow_RetryThenSuccessBooksUncertainCost`, `TestWorkflow_FatalProviderErrorNotRetried` (books nothing) | passed |
+| Extra | clean `completed` fixture and test; direct renderer tests; CLI smoke with isolated `MIA_DATA_DIR`/`MIA_REPORTS_DIR` | `TestWorkflow_CleanCompleted`, `report_test.go`, `TestCLISmokeIsolated` | passed |
+
+Not changed in this sprint (out of its scope): A8–A16 from the audit report.

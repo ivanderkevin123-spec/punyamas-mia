@@ -1,5 +1,6 @@
 // Package report renders Markdown and static HTML reports from validated
-// store rows only. Nothing is rendered from raw model text.
+// store rows only. Nothing is rendered from raw model text. Markdown output is
+// escaped for untrusted values (A4); HTML uses html/template auto-escaping.
 package report
 
 import (
@@ -61,6 +62,7 @@ type Data struct {
 	Status         string
 	StatusLabel    string
 	Failed         bool
+	Incomplete     bool // partial or failed: validation may not have run
 	CreatedAt      string
 	FinishedAt     string
 	Generated      string
@@ -75,12 +77,15 @@ type Data struct {
 	Facts          []ItemView
 	Interps        []ItemView
 	Hyps           []ItemView
+	Unvalidated    []ItemView
 	Rejected       []ItemView
 	Dups           []ItemView
 	Susp           []ItemView
 	Sources        []SourceView
 	Execs          []ExecView
 	CostTotal      string
+	CostActual     string
+	CostUncertain  string
 	CostMeasurable bool
 	MonthlyCeiling string
 	NextSteps      []string
@@ -93,6 +98,39 @@ var statusLabels = map[string]string{
 	domain.RunFailed:                "GAGAL / TIDAK LENGKAP",
 	domain.RunRunning:               "Masih berjalan",
 }
+
+var statusLabelsID = map[string]string{
+	domain.ItemImported:  "belum divalidasi",
+	domain.ItemValidated: "tervalidasi",
+	domain.ItemRejected:  "ditolak",
+	domain.ItemDuplicate: "duplikat",
+	domain.ItemConflict:  "konflik",
+}
+
+// ---- Markdown escaping (A4) ----
+
+// mdEscaper backslash-escapes the ASCII punctuation that Markdown and GFM
+// interpret (CommonMark allows a backslash before any ASCII punctuation).
+var mdEscaper = strings.NewReplacer(
+	"\\", "\\\\", "`", "\\`", "*", "\\*", "_", "\\_", "[", "\\[", "]", "\\]",
+	"<", "\\<", ">", "\\>", "|", "\\|", "#", "\\#", "&", "\\&", "~", "\\~",
+)
+
+// MDText escapes an untrusted narrative value and collapses line breaks so it
+// cannot start a new block, a table row, raw HTML or a link.
+func MDText(s string) string {
+	return mdEscaper.Replace(strings.Join(strings.Fields(s), " "))
+}
+
+// MDCell is MDText for table cells (pipes and newlines are already neutralised).
+func MDCell(s string) string { return MDText(s) }
+
+// MDCode prepares a value for a Markdown code span: no backticks, no line breaks.
+func MDCode(s string) string {
+	return strings.Join(strings.Fields(strings.ReplaceAll(s, "`", "'")), " ")
+}
+
+var mdFuncs = texttpl.FuncMap{"text": MDText, "cell": MDCell, "code": MDCode}
 
 // Build assembles the view model from the store.
 func (r *Renderer) Build(ctx context.Context, run *domain.Run, sum *domain.RunSummary) (*Data, error) {
@@ -126,16 +164,22 @@ func (r *Renderer) Build(ctx context.Context, run *domain.Run, sum *domain.RunSu
 	_ = json.Unmarshal([]byte(run.InputsJSON), &in)
 	d := &Data{
 		Title: "Laporan Riset Pasar MIA", BrandName: r.Cfg.Brand.Name, RunID: run.ID, Kind: run.Kind, Status: sum.Status,
-		StatusLabel: statusLabels[sum.Status], Failed: sum.Status == domain.RunFailed, CreatedAt: run.CreatedAt, FinishedAt: run.FinishedAt,
+		StatusLabel: statusLabels[sum.Status], Failed: sum.Status == domain.RunFailed,
+		Incomplete: sum.Status == domain.RunFailed || sum.Status == domain.RunPartial || sum.Status == domain.RunRunning,
+		CreatedAt: run.CreatedAt, FinishedAt: run.FinishedAt,
 		Generated: r.now().UTC().Format(time.RFC3339), ConfigHash: run.ConfigHash, Provider: run.ProviderName, Inputs: relOrBase(in.InputsDir, r.Cfg.Paths.Root),
 		Steps: sum.Steps, Counts: sum.Counts, Warnings: sum.Warnings, Errors: sum.Errors, Drift: sum.Drift,
-		CostTotal: fmt.Sprintf("USD %.4f", sum.CostUSD), CostMeasurable: sum.CostMeasurable, MonthlyCeiling: fmt.Sprintf("USD %.2f", r.Cfg.Limits.Caps.MonthlyCeilingUSD),
+		CostTotal: fmt.Sprintf("USD %.4f", sum.CostUSD), CostActual: fmt.Sprintf("USD %.4f", sum.CostActualUSD), CostUncertain: fmt.Sprintf("USD %.4f", sum.CostUncertainUSD),
+		CostMeasurable: sum.CostMeasurable, MonthlyCeiling: fmt.Sprintf("USD %.2f", r.Cfg.Limits.Caps.MonthlyCeilingUSD),
 	}
 	if d.StatusLabel == "" {
 		d.StatusLabel = sum.Status
 	}
 	for _, it := range items {
-		v := ItemView{Ref: it.Ref, Title: it.Title, Statement: it.Statement, Kind: it.Kind, Quality: it.Quality, TopicKey: it.TopicKey, Status: it.Status, Rationale: it.Rationale, Suspicious: it.Suspicious}
+		v := ItemView{Ref: it.Ref, Title: it.Title, Statement: it.Statement, Kind: it.Kind, Quality: it.Quality, TopicKey: it.TopicKey, Status: statusLabelsID[it.Status], Rationale: it.Rationale, Suspicious: it.Suspicious}
+		if v.Status == "" {
+			v.Status = it.Status
+		}
 		if it.DuplicateOf != "" {
 			if t := itemByID[it.DuplicateOf]; t != nil {
 				v.DuplicateOf = t.Ref
@@ -169,6 +213,7 @@ func (r *Renderer) Build(ctx context.Context, run *domain.Run, sum *domain.RunSu
 				v.Errors = cc.ValidationErrors
 			}
 		}
+		// Only validated items may appear under the factual headings (A6).
 		switch {
 		case it.Status == domain.ItemDuplicate:
 			d.Dups = append(d.Dups, v)
@@ -176,6 +221,8 @@ func (r *Renderer) Build(ctx context.Context, run *domain.Run, sum *domain.RunSu
 			d.Susp = append(d.Susp, v)
 		case it.Status == domain.ItemRejected:
 			d.Rejected = append(d.Rejected, v)
+		case it.Status != domain.ItemValidated:
+			d.Unvalidated = append(d.Unvalidated, v)
 		case it.Kind == domain.KindFact:
 			d.Facts = append(d.Facts, v)
 		case it.Kind == domain.KindInterpretation:
@@ -191,6 +238,9 @@ func (r *Renderer) Build(ctx context.Context, run *domain.Run, sum *domain.RunSu
 		ev := ExecView{ID: e.ID, Agent: e.AgentName, Provider: e.ProviderName, Model: e.Model, Outcome: e.Outcome, InputTokens: e.InputTokens, OutputTokens: e.OutputTokens, Measurable: e.CostMeasurable, Error: e.ErrorText, Cost: "tidak terukur"}
 		if e.CostUSD != nil {
 			ev.Cost = fmt.Sprintf("USD %.4f", *e.CostUSD)
+			if !e.CostMeasurable {
+				ev.Cost += " (estimasi)"
+			}
 		}
 		d.Execs = append(d.Execs, ev)
 	}
@@ -203,6 +253,9 @@ func nextSteps(d *Data) []string {
 	if d.Failed {
 		out = append(out, "Perbaiki penyebab kegagalan pada langkah yang gagal, lalu jalankan ulang dengan --resume "+d.RunID+".")
 	}
+	if len(d.Unvalidated) > 0 {
+		out = append(out, "Ada butir yang belum divalidasi; jalankan run sampai langkah validate sebelum memakai temuan.")
+	}
 	if d.Counts.FilesRejected > 0 {
 		out = append(out, "Perbaiki berkas impor yang ditolak (lihat peringatan) dan jalankan ulang.")
 	}
@@ -210,6 +263,9 @@ func nextSteps(d *Data) []string {
 		if dr.Status == "changed" || dr.Status == "review_required" {
 			out = append(out, fmt.Sprintf("Tinjau perubahan aset ruang kerja %q dan selaraskan konfigurasi (mia approve asset --key %s).", dr.Key, dr.Key))
 		}
+	}
+	if !d.CostMeasurable {
+		out = append(out, "Sebagian biaya dibukukan sebagai estimasi tidak pasti; rekonsiliasi dengan tagihan penyedia sebelum mengandalkan angka biaya.")
 	}
 	if len(d.Hyps) > 0 {
 		out = append(out, "Hipotesis belum berbukti eksternal; kumpulkan bukti (catatan lapangan, sumber publik yang disetujui) sebelum dipakai dalam keputusan.")
@@ -270,7 +326,7 @@ func (r *Renderer) Render(ctx context.Context, run *domain.Run, sum *domain.RunS
 }
 
 func (r *Renderer) RenderMarkdown(d *Data) ([]byte, error) {
-	t, err := texttpl.New("research.md.tmpl").ParseFS(templateFS, "templates/research.md.tmpl")
+	t, err := texttpl.New("research.md.tmpl").Funcs(mdFuncs).ParseFS(templateFS, "templates/research.md.tmpl")
 	if err != nil {
 		return nil, err
 	}

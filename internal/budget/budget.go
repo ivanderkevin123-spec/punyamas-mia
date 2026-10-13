@@ -1,10 +1,12 @@
 // Package budget enforces per-run, per-agent and monthly cost ceilings before
-// every provider call and records usage afterwards.
+// every provider call and records usage afterwards. Failed calls are booked
+// conservatively as uncertain estimates so repeated failures cannot bypass a ceiling.
 package budget
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -33,6 +35,13 @@ type Decision struct {
 	AgentSpent  float64
 	Warn        bool
 }
+
+// Unit price sources recorded on cost rows.
+const (
+	SourceProviderReported = "provider_reported"
+	SourceUnmeasurable     = "unmeasurable:estimate"
+	SourceUncertainPrefix  = "uncertain:" // + reason (timeout, error); booked from the pre-call estimate
+)
 
 // Location returns the ledger timezone (WIB).
 func Location() *time.Location {
@@ -63,7 +72,7 @@ func (g *Gate) loc() *time.Location {
 	return Location()
 }
 
-// Allow checks the ceilings against the ledger plus the estimate for the next call.
+// Allow checks the ceilings against the ledger (actual plus uncertain spend) plus the estimate for the next call.
 func (g *Gate) Allow(ctx context.Context, runID, agent, model string, estIn, estOut int) (Decision, error) {
 	d := Decision{}
 	est, known := Estimate(g.Prices, model, estIn, 0, estOut)
@@ -98,8 +107,9 @@ func (g *Gate) Allow(ctx context.Context, runID, agent, model string, estIn, est
 	return d, nil
 }
 
-// Record writes a cost record from provider usage. Unmeasurable usage is booked
-// as an estimate and flagged.
+// Record books the cost of a completed call from provider usage. Unmeasurable
+// usage is booked as an estimate and flagged. If a row already exists for the
+// execution (for example an uncertain booking being reconciled), it is replaced.
 func (g *Gate) Record(ctx context.Context, runID, execID, agent, providerName, model string, u provider.Usage, estIn, estOut int) (*domain.CostRecord, error) {
 	in, out, cache := u.InputTokens, u.OutputTokens, u.CacheReadTokens
 	estimated := !u.Measurable
@@ -107,11 +117,11 @@ func (g *Gate) Record(ctx context.Context, runID, execID, agent, providerName, m
 		in, out = estIn, estOut
 	}
 	var cost *float64
-	source := "unmeasurable:estimate"
+	source := SourceUnmeasurable
 	if u.CostUSD != nil && u.Measurable {
 		v := *u.CostUSD
 		cost = &v
-		source = "provider_reported"
+		source = SourceProviderReported
 	} else if v, ok := Estimate(g.Prices, model, in, cache, out); ok {
 		cost = &v
 		if !estimated {
@@ -119,14 +129,50 @@ func (g *Gate) Record(ctx context.Context, runID, execID, agent, providerName, m
 		}
 	}
 	units, _ := json.Marshal(map[string]int{"input_tokens": in, "output_tokens": out, "cache_read_tokens": cache})
-	now := g.Now()
-	rec := &domain.CostRecord{
-		ID: g.IDs.New("cost"), RunID: runID, AgentExecutionID: execID, AgentName: agent, Category: "llm", ProviderName: providerName,
-		UnitsJSON: string(units), UnitPriceSource: source, CostUSD: cost, Estimated: estimated,
-		PeriodMonth: Period(now, g.loc()), CreatedAt: now.UTC().Format(time.RFC3339),
-	}
-	if err := g.Store.InsertCost(ctx, rec); err != nil {
+	rec := g.newRecord(runID, execID, agent, providerName, string(units), source, cost, estimated)
+	if err := g.upsert(ctx, rec); err != nil {
 		return nil, err
 	}
 	return rec, nil
+}
+
+// RecordUncertain books the pre-call estimate for a call whose outcome is unknown
+// (timeout or provider error after the request may have been processed). The row
+// is flagged estimated and its source is "uncertain:<reason>". No actual charge is claimed.
+func (g *Gate) RecordUncertain(ctx context.Context, runID, execID, agent, providerName, model string, estIn, estOut int, reason string) (*domain.CostRecord, error) {
+	est, ok := Estimate(g.Prices, model, estIn, 0, estOut)
+	if !ok {
+		return nil, fmt.Errorf("price table has no entry for model %q", model)
+	}
+	units, _ := json.Marshal(map[string]int{"input_tokens_est": estIn, "output_tokens_est": estOut})
+	rec := g.newRecord(runID, execID, agent, providerName, string(units), SourceUncertainPrefix+reason, &est, true)
+	if err := g.upsert(ctx, rec); err != nil {
+		return nil, err
+	}
+	return rec, nil
+}
+
+func (g *Gate) newRecord(runID, execID, agent, providerName, units, source string, cost *float64, estimated bool) *domain.CostRecord {
+	now := g.Now()
+	return &domain.CostRecord{
+		ID: g.IDs.New("cost"), RunID: runID, AgentExecutionID: execID, AgentName: agent, Category: "llm", ProviderName: providerName,
+		UnitsJSON: units, UnitPriceSource: source, CostUSD: cost, Estimated: estimated,
+		PeriodMonth: Period(now, g.loc()), CreatedAt: now.UTC().Format(time.RFC3339),
+	}
+}
+
+// upsert keeps at most one cost row per execution to avoid double counting on reconciliation.
+func (g *Gate) upsert(ctx context.Context, rec *domain.CostRecord) error {
+	if rec.AgentExecutionID != "" {
+		existing, err := g.Store.FindCostByExecution(ctx, rec.AgentExecutionID)
+		switch {
+		case err == nil:
+			rec.ID = existing.ID
+			rec.CreatedAt = existing.CreatedAt
+			return g.Store.UpdateCost(ctx, rec)
+		case !errors.Is(err, store.ErrNotFound):
+			return err
+		}
+	}
+	return g.Store.InsertCost(ctx, rec)
 }
