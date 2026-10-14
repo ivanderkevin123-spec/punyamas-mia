@@ -1,0 +1,67 @@
+# Content Agent rules (Phase 4). Everything here is applied by code; the model only proposes drafts.
+# Every draft is a DRAF: MIA never publishes, sends, schedules or posts anything.
+version: v1
+max_calls_per_run: 2          # hard cap per content run (one call plus one bounded repair), counted from stored executions
+duplicate_similarity: 0.85    # token Jaccard of hook + headline + body within one opportunity, content type and channel
+default_types: [instagram_caption, headline_variants, education, short_video_script, whatsapp_message, article_faq]
+# max_runes: 0 means the field must stay empty for that type. sections: the body must contain "<Section>:" lines in this order.
+types:
+  instagram_caption:
+    label: "Caption Instagram"
+    channels: [instagram]
+    variants: 3
+    required: [hook, body, call_to_action]
+    max_runes: { hook: 125, headline: 0, body: 1200, call_to_action: 120 }
+  headline_variants:
+    label: "Variasi headline/hook untuk pengujian"
+    channels: [instagram, situs, whatsapp]
+    variants: 3
+    required: [headline, body]
+    max_runes: { hook: 125, headline: 90, body: 300, call_to_action: 80 }
+  education:
+    label: "Konten edukasi emas"
+    channels: [situs, instagram]
+    variants: 1
+    required: [headline, body, call_to_action]
+    max_runes: { hook: 150, headline: 100, body: 2500, call_to_action: 120 }
+  short_video_script:
+    label: "Naskah video pendek"
+    channels: [instagram_reels]
+    variants: 1
+    required: [hook, body, call_to_action]
+    max_runes: { hook: 125, headline: 100, body: 1500, call_to_action: 120 }
+    sections: [Pembuka, Isi, Penutup]
+  whatsapp_message:
+    label: "Pesan WhatsApp (draf, tidak dikirim)"
+    channels: [whatsapp]
+    variants: 1
+    required: [body, call_to_action]
+    max_runes: { hook: 0, headline: 0, body: 700, call_to_action: 120 }
+    checklist:
+      - "Pesan promosi WhatsApp hanya untuk kontak yang memberi persetujuan promosi terpisah; MIA tidak mengirim pesan."
+  article_faq:
+    label: "Artikel pendek atau FAQ"
+    channels: [situs]
+    variants: 1
+    required: [headline, body]
+    max_runes: { hook: 150, headline: 100, body: 4000, call_to_action: 120 }
+    sections: [Pertanyaan, Jawaban]
+# Marketing-language rules on public text (hook, headline, body, call_to_action), applied after valid
+# [ISI: ...] placeholders are removed. block = the draft is blocked; review = the draft needs human review.
+# They match wording, not meaning: paraphrases and implied promises can pass, so human review stays mandatory.
+language_rules:
+  - { category: JANJI_UNTUNG, action: block, reason: "janji keuntungan atau kenaikan harga yang pasti", pattern: '(?i)(\b(pasti|dijamin|terjamin|tentu)\s+(untung|cuan|naik|laku|menguntungkan|balik modal)\b|\bharga\s+emas\s+(pasti|selalu|akan\s+terus)\s+naik\b|\b(untung|keuntungan)\s+(pasti|terjamin)\b|\btanpa\s+rugi\b|\bbebas\s+risiko\b|\banti\s+rugi\b)' }
+  - { category: TREN_HARGA, action: block, reason: "tren atau prediksi harga emas tanpa bukti", pattern: '(?i)(\bharga\s+emas\s+(sedang\s+|lagi\s+|terus\s+|akan\s+|mulai\s+)?(naik|turun|melonjak|anjlok|tinggi|rendah)\b|\b(saat|waktu|momen)\s+(terbaik|tepat|yang\s+tepat)\s+(untuk\s+)?(jual|menjual)\b|\bprediksi\s+harga\b|\btren\s+harga\b)' }
+  - { category: TESTIMONI, action: block, reason: "testimoni, ulasan, atau peringkat pelanggan yang belum ada", pattern: '(?i)(\btestimoni\b|\b(ulasan|review|rating)\s+(pelanggan|customer)\b|\bbintang\s+(5|lima)\b|★|\b(sudah|telah)\s+dipercaya\s+(oleh\s+)?(ribuan|ratusan|banyak)\b|\b(kata|menurut)\s+(pak|bu|bapak|ibu|mas|mbak|kak)\s+\p{L}+)' }
+  - { category: URGENSI_PALSU, action: block, reason: "tekanan waktu, kelangkaan, atau urgensi palsu", pattern: '(?i)(\b(hanya|cuma)\s+(hari\s+ini|minggu\s+ini|sampai)\b|\b(stok|kuota|tempat|slot|promo|penawaran)\s+terbatas\b|\b(buruan|cepetan)\b|\bjangan\s+sampai\s+(ketinggalan|kehabisan)\b|\bkesempatan\s+terakhir\b|\b(promo|penawaran)\s+(berakhir|habis)\b|\bsisa\s+\d+\b|\bsebelum\s+(kehabisan|terlambat)\b|!{2,})' }
+  - { category: DISKON_PROMO, action: block, reason: "diskon, bonus, atau syarat promosi yang belum ditetapkan", pattern: '(?i)(\b(diskon|cashback|potongan\s+harga|bonus|gratis|hadiah|voucher|kupon)\b|\bpromo\b[^.\n]{0,40}\d|\d[^.\n]{0,20}\bpromo\b)' }
+  - { category: WAKTU_PROSES, action: block, reason: "janji waktu proses atau pembayaran yang belum terverifikasi", pattern: '(?i)(\b(selesai|beres|cair|dibayar|ditransfer|proses|prosesnya)\s+(dalam|hanya|cuma|kurang\s+dari|maksimal|maks\.?)\s+\d+\s*(detik|menit|jam|hari)\b|\b\d+\s*(detik|menit|jam)\s+(saja|selesai|beres|cair)\b|\b(langsung|seketika)\s+(cair|dibayar|ditransfer)\b)' }
+  - { category: TEKANAN, action: review, reason: "ajakan yang mendesak; nada KP1 meminta tanpa tekanan", pattern: '(?i)(\b(segera|sekarang\s+juga|ayo|yuk)\b|!)' }
+  - { category: PLACEHOLDER_TIDAK_BAKU, action: review, reason: "penanda isian tidak baku; gunakan [ISI: keterangan]", pattern: '(?i)(\[\s*isi\s*:?\s*\]|\{\s*isi|<\s*isi|\bTODO\b|\bXXX\b|\bTBD\b|\[\s*\.\.\.\s*\]|\[[^\]]*isi\s+nanti[^\]]*\])' }
+# Added to every draft's review checklist by code (the agent's own items are appended after these).
+review_checklist:
+  - "Persetujuan CEO wajib sebelum publikasi apa pun (D-005); persetujuan di MIA bukan izin publikasi."
+  - "Syarat M1 §2 terpenuhi sebelum kegiatan publik (nama lolos pemeriksaan merek D-019, akun atas nama usaha)."
+  - "Semua [ISI: ...] diisi dengan data terverifikasi; tidak ada harga, alamat, jam buka, atau angka yang dikarang."
+  - "Teks akhir lolos pemeriksa teks merek setelah diedit."
+  - "Fakta berstatus RENCANA ditulis dalam bahasa niat (kami akan ...)."

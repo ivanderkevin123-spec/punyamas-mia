@@ -1,0 +1,67 @@
+{{define "draft"}}<div class="item"><span class="tag">{{.Status}}</span><strong>{{.TypeLabel}} — varian {{.Variant}}</strong> <code>{{.ID}}</code>
+<p class="muted">Status: {{.StatusLabel}} · Versi {{.Version}} · Kanal: {{.Channel}} · Segmen: {{.Segment}}</p>
+<p><strong>Tujuan:</strong> {{.Objective}}</p>
+<p class="{{if .Readiness.Ready}}ok{{else}}warn{{end}}"><strong>Siap serah terima ke proses persetujuan publikasi:</strong> {{if .Readiness.Ready}}YA (bukan izin publikasi){{else}}TIDAK{{range .Readiness.Reasons}} — {{.}}{{end}}{{end}}</p>
+{{if .Hook}}<p><strong>Hook:</strong> {{.Hook}}</p>{{end}}{{if .Headline}}<p><strong>Headline:</strong> {{.Headline}}</p>{{end}}
+<p><strong>Isi draf (DRAF, belum dipublikasikan):</strong></p><blockquote class="body">{{.Body}}</blockquote>
+{{if .CTA}}<p><strong>Ajakan (CTA):</strong> {{.CTA}}</p>{{end}}
+<p><strong>Bukti pendukung:</strong></p><ul>{{range .Evidence}}<li><code>{{.ID}}</code> [{{.Ref}}] {{.Kind}} kualitas {{.Quality}} — {{.Statement}}{{if .SourceName}} <span class="muted">({{.SourceName}})</span>{{end}}</li>{{else}}<li>tidak ada</li>{{end}}</ul>
+<ul>{{range .BrandFacts}}<li>Fakta usaha <code>{{.ID}}</code> ({{.Status}}): {{.Text}}</li>{{end}}{{range .SupportedClaims}}<li>Fakta terdukung (bukti peluang atau fakta usaha): {{.Text}}</li>{{end}}{{range .OtherClaims}}<li>{{if eq .Kind "interpretation"}}Interpretasi pemasaran (bukan fakta){{else}}Hipotesis (bukan fakta){{end}}: {{.Text}}</li>{{end}}</ul>
+{{range .ClaimsToVerify}}<p class="warn">Klaim perlu verifikasi: {{.}}</p>{{end}}
+{{range .Placeholders}}<p class="warn">Isian wajib diisi: <code>{{.}}</code></p>{{end}}
+{{range .Findings}}<p class="{{if eq .Severity "block"}}fail{{else}}warn{{end}}">Temuan {{.Gate}} {{.Category}} ({{.Severity}}): {{.Reason}}{{if .Match}} — “{{.Match}}”{{end}}</p>{{end}}
+<ul>{{range .Assumptions}}<li>Asumsi: {{.}}</li>{{end}}{{range .Risks}}<li>Risiko: {{.}}</li>{{end}}</ul>
+<p><strong>Checklist tinjauan manusia:</strong></p><ul>{{range .Checklist}}<li>☐ {{.Text}}{{if eq .Source "agent"}} <span class="muted">(usulan agen)</span>{{end}}</li>{{end}}</ul>
+<p class="muted">Riwayat versi: {{range $i, $v := .Versions}}{{if $i}}; {{end}}v{{$v.Version}} oleh {{$v.Author}} {{$v.CreatedAt}} → {{$v.StatusAfter}}{{if $v.Note}} ({{$v.Note}}){{end}}{{end}}<br>
+Riwayat tinjauan: {{if not .Reviews}}belum ada{{end}}{{range $i, $a := .Reviews}}{{if $i}}; {{end}}{{$a.At}} {{$a.Decision}} v{{$a.Version}} oleh {{$a.By}}{{if $a.Note}} ({{$a.Note}}){{end}}{{end}}<br>
+Provenance: peluang <code>{{.OpportunityID}}</code> · run konten <code>{{.RunID}}</code> · run strategi <code>{{.StrategyRunID}}</code> · run riset <code>{{.ResearchRunID}}</code> · eksekusi <code>{{.ExecutionID}}</code> · konfigurasi <code>{{.ConfigHash}}</code> · aturan konten <code>{{.ContentConfigHash}}</code> · aturan skor <code>{{.ScoringConfigHash}}</code> · fixture <code>{{.FixtureHash}}</code> · hash isi <code>{{.ContentHash}}</code></p>
+</div>{{end}}<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} — {{.RunID}}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;max-width:1000px;margin:2rem auto;padding:0 1rem;color:#1B2F4A;line-height:1.5}
+h1,h2,h3{color:#1B2F4A} h1{border-bottom:3px solid #B59864;padding-bottom:.3rem}
+table{border-collapse:collapse;width:100%;margin:.5rem 0;font-size:.92rem} th,td{border:1px solid #d9d4c7;padding:.35rem .5rem;text-align:left;vertical-align:top} th{background:#f5f1e8}
+code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px;word-break:break-all}
+.fail{background:#fde8e8;border:2px solid #b00020;padding:.5rem .75rem}
+.warn{background:#fff6dd;border-left:4px solid #B59864;padding:.5rem .75rem;margin:.5rem 0}
+.ok{background:#e9f5ec;border-left:4px solid #2e7d32;padding:.5rem .75rem}
+.draft{background:#1B2F4A;color:#fff;padding:.75rem;font-weight:bold}
+.item{border:1px solid #d9d4c7;border-radius:6px;padding:.6rem .9rem;margin:.6rem 0}
+.body{white-space:pre-wrap;border-left:4px solid #786647;margin:.5rem 0;padding:.25rem .75rem;background:#faf8f3}
+.tag{display:inline-block;background:#786647;color:#fff;border-radius:3px;padding:0 .4rem;font-size:.8rem;margin-right:.3rem}
+.muted{color:#666;font-size:.9rem}
+</style>
+</head>
+<body>
+<h1>{{.Title}} — {{.BrandName}}</h1>
+<div class="draft">DRAF — BELUM DIPUBLIKASIKAN. MIA tidak memiliki fitur publikasi, pengiriman, atau penjadwalan; persetujuan di MIA bukan izin publikasi.</div>
+{{if .Failed}}<div class="fail">RUN GAGAL / TIDAK LENGKAP. Laporan ini tidak boleh dibaca sebagai hasil konten yang selesai.</div>{{else if .Incomplete}}<div class="fail">RUN BELUM LENGKAP. Tidak semua langkah dijalankan.</div>{{end}}
+<table><tr><th>Run konten</th><th>Peluang</th><th>Run strategi</th><th>Run riset</th><th>Status</th><th>Dibuat (UTC)</th><th>Selesai (UTC)</th><th>Penyedia AI</th><th>Konfigurasi</th><th>Aturan konten</th><th>Fixture</th></tr>
+<tr><td><code>{{.RunID}}</code></td><td><code>{{.OpportunityID}}</code></td><td><code>{{.StrategyRunID}}</code></td><td><code>{{.ResearchRunID}}</code></td><td><strong>{{.StatusLabel}}</strong></td><td>{{.CreatedAt}}</td><td>{{.FinishedAt}}</td><td>{{.Provider}}</td><td><code>{{.ConfigHash}}</code></td><td><code>{{.ContentConfigHash}}</code></td><td><code>{{.FixtureHash}}</code></td></tr></table>
+<h2>1. Peluang sumber</h2>
+{{with .Opportunity}}<p><strong>{{.Title}}</strong> <code>{{.ID}}</code> · tingkat {{.Tier}} · status {{.StatusLabel}} · segmen {{.Segment}}</p><p>Kebutuhan: {{.Need}}</p><p>Interpretasi strategis (bukan fakta): {{.Interpretation}}</p>
+<p class="muted">Riwayat keputusan: {{range $i, $a := .Approvals}}{{if $i}}; {{end}}{{$a.At}} {{$a.Decision}} oleh {{$a.By}}{{if $a.Note}} ({{$a.Note}}){{end}}{{end}}</p>{{else}}<p class="muted">Peluang sumber tidak dapat dimuat.</p>{{end}}
+<h2>2. Ringkasan</h2>
+<ul><li>Draf diusulkan agen: {{.Counts.Proposed}} · ditolak struktural: {{.Counts.StructuralRejected}} · duplikat tidak disimpan: {{.Counts.DuplicatesSkipped}} · disimpan: {{.Counts.Stored}}</li>
+<li>Status: perlu tinjauan {{.Counts.NeedsReview}} · lolos gerbang {{.Counts.Draft}} · disetujui {{.Counts.Approved}} · ditolak {{.Counts.Rejected}} · diblokir {{.Counts.Blocked}}</li>
+<li>Isian belum diisi: {{.Counts.Placeholders}} · klaim perlu verifikasi: {{.Counts.ClaimsToVerify}} · tautan bukti: {{.Counts.EvidenceLinks}}</li>
+<li>Biaya: {{.CostTotal}} (aktual {{.CostActual}}, estimasi tidak pasti {{.CostUncertain}}) · Plafon bulanan: {{.MonthlyCeiling}}</li></ul>
+<h2>3. Status langkah</h2>
+<table><tr><th>Langkah</th><th>Status</th><th>Percobaan</th><th>Catatan</th></tr>{{range .Steps}}<tr><td>{{.Name}}</td><td>{{.Status}}</td><td>{{.Attempts}}</td><td>{{.Error}}</td></tr>{{end}}</table>
+{{if .Errors}}<h3>Kesalahan</h3><ul>{{range .Errors}}<li>{{.}}</li>{{end}}</ul>{{end}}
+{{if .Warnings}}<h3>Peringatan</h3>{{range .Warnings}}<div class="warn">{{.}}</div>{{end}}{{end}}
+<h2>4. Perlu tinjauan ({{len .NeedsReview}})</h2>{{range .NeedsReview}}{{template "draft" .}}{{else}}<p class="muted">Tidak ada.</p>{{end}}
+<h2>5. Lolos gerbang kode, menunggu tinjauan ({{len .Draft}})</h2>{{range .Draft}}{{template "draft" .}}{{else}}<p class="muted">Tidak ada.</p>{{end}}
+<h2>6. Disetujui peninjau — bukan izin publikasi ({{len .Approved}})</h2>{{range .Approved}}{{template "draft" .}}{{else}}<p class="muted">Tidak ada.</p>{{end}}
+<h2>7. Ditolak peninjau ({{len .Rejected}})</h2>{{range .Rejected}}{{template "draft" .}}{{else}}<p class="muted">Tidak ada.</p>{{end}}
+<h2>8. Diblokir gerbang kode ({{len .Blocked}})</h2>{{range .Blocked}}{{template "draft" .}}{{else}}<p class="muted">Tidak ada.</p>{{end}}
+<h2>9. Eksekusi agen dan biaya</h2>
+<table><tr><th>Eksekusi</th><th>Agen</th><th>Penyedia</th><th>Model</th><th>Hasil</th><th>Token masuk</th><th>Token keluar</th><th>Biaya</th></tr>{{range .Execs}}<tr><td><code>{{.ID}}</code></td><td>{{.Agent}}</td><td>{{.Provider}}</td><td>{{.Model}}</td><td>{{.Outcome}}</td><td>{{.InputTokens}}</td><td>{{.OutputTokens}}</td><td>{{.Cost}}</td></tr>{{else}}<tr><td colspan="8">tidak ada panggilan</td></tr>{{end}}</table>
+<h2>10. Langkah berikutnya</h2><ul>{{range .NextSteps}}<li>{{.}}</li>{{end}}</ul>
+<p class="muted">Dibuat {{.Generated}} oleh MIA (mode {{.Provider}}). DRAF — belum dipublikasikan.</p>
+</body>
+</html>

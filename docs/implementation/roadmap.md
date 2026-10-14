@@ -1,6 +1,6 @@
 # MIA — Implementation Roadmap
 
-**Status:** Phase 3 implemented 2026-10-13 (uncommitted, awaiting approval); Phases 4–7 are **not started** and each requires its own approval. Costs are external USD costs; the monthly ceiling is USD 20.
+**Status:** Phases 0–3 committed (`4ccd4fa`); Phase 4 implemented 2026-10-14 (uncommitted, awaiting approval); Phases 5–7 are **not started** and each requires its own approval. Costs are external USD costs; the monthly ceiling is USD 20.
 
 ## 0. Ringkasan (Bahasa Indonesia)
 
@@ -52,7 +52,9 @@ Delivered: Strategy Agent over validated research items (`internal/agent/strateg
 | Cost | USD 0 in mock; ≤ USD 5 for live smoke tests and first runs if Option A is approved (within the USD 20 ceiling) |
 | Approval gate | Phase 3 report including an inspected sample report (Q4 checklist), cost ledger, allowlist decisions recorded; owner approves Phase 4 |
 
-## Phase 4 — Content and campaign capabilities
+## Phase 4 — Content and campaign capabilities (Content Agent implemented 2026-10-14; see `phase4-report.md`)
+
+Delivered: Content Agent over one approved opportunity (`internal/agent/content`, `internal/content`), contract `content_drafts.v1`, six content types with configured variants and limits (`config/content.yaml`), eligibility from the database, evidence/claim/language/placeholder/duplicate gates in code, draft state machine with versioned append-only reviews and revisions, migration `0003_content.sql`, content report and safe DRAF export, CLI `run content` and `content list|show|review|revise|export`. Changed from the original plan: typed drafts per content type instead of one `campaign_briefs` row; reviews reuse `approval_records` (`approved`/`rejected`) instead of `approved_for_handoff`; no new dependencies. Original plan for reference:
 
 | Field | Content |
 |---|---|

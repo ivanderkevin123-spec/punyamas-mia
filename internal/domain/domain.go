@@ -201,13 +201,15 @@ type CostRecord struct {
 }
 
 type ApprovalRecord struct {
-	ID          string
-	SubjectType string
-	SubjectID   string
-	Decision    string
-	DecidedBy   string
-	Note        string
-	DecidedAt   string
+	ID             string
+	SubjectType    string
+	SubjectID      string
+	Decision       string
+	DecidedBy      string
+	Note           string
+	DecidedAt      string
+	SubjectVersion int    // versioned subjects (content drafts): version the decision applies to; 0 = not versioned
+	SubjectHash    string // content hash of that version
 }
 
 // RunSummary is stored as summary_json on the run and rendered in reports.
@@ -229,6 +231,9 @@ type RunSummary struct {
 	DurationS         float64         `json:"duration_s"`
 	ParentRunID       string          `json:"parent_run_id,omitempty"`
 	Strategy          *StrategyCounts `json:"strategy,omitempty"`
+	Content           *ContentCounts  `json:"content,omitempty"`
+	ContentConfigHash string          `json:"content_config_hash,omitempty"`
+	OpportunityID     string          `json:"opportunity_id,omitempty"`
 	FixtureHash       string          `json:"fixture_hash,omitempty"`
 	ScoringConfigHash string          `json:"scoring_config_hash,omitempty"`
 }
@@ -332,4 +337,91 @@ type StrategyCounts struct {
 	StoreDependent int `json:"store_dependent"`
 	EvidenceItems  int `json:"evidence_items"` // validated items available from the research run
 	ConflictGroups int `json:"conflict_groups"`
+}
+
+// Content draft statuses (Phase 4). A draft is never published by MIA; "approved" means a
+// human approved this version for the next manual stage, not for publication.
+const (
+	DraftDraft       = "draft"        // passed every code gate; awaits human review
+	DraftNeedsReview = "needs_review" // placeholders, claims to verify, review-level findings, or changed after review
+	DraftApproved    = "approved"     // human decision for the current version
+	DraftRejected    = "rejected"     // human decision
+	DraftBlocked     = "blocked"      // a hard gate failed; cannot be reviewed until revised
+)
+
+// SubjectContentDraft is the approval_records subject type of content draft reviews.
+const SubjectContentDraft = "content_draft"
+
+type ContentDraft struct {
+	ID                string
+	RunID             string
+	OpportunityID     string
+	StrategyRunID     string
+	ResearchRunID     string
+	ProposalIndex     int
+	ContentType       string
+	Variant           int
+	Channel           string
+	TargetSegment     string
+	Objective         string
+	Hook              string
+	Headline          string
+	Body              string
+	CallToAction      string
+	ClaimsJSON        string
+	PlaceholdersJSON  string
+	AssumptionsJSON   string
+	RisksJSON         string
+	ChecklistJSON     string
+	FindingsJSON      string
+	BrandFactIDsJSON  string
+	Status            string
+	Version           int
+	ContentHash       string
+	ExecutionID       string
+	ConfigHash        string
+	ContentConfigHash string
+	ScoringConfigHash string
+	FixtureHash       string
+	CreatedAt         string
+	UpdatedAt         string
+}
+
+type ContentDraftEvidence struct {
+	DraftID       string
+	OpportunityID string
+	ItemID        string
+	Role          string // fact | interpretation | hypothesis
+}
+
+type ContentDraftVersion struct {
+	DraftID          string
+	Version          int
+	Hook             string
+	Headline         string
+	Body             string
+	CallToAction     string
+	ContentHash      string
+	Author           string // agent | human
+	Note             string
+	StatusAfter      string
+	FindingsJSON     string
+	PlaceholdersJSON string
+	CreatedAt        string
+}
+
+// ContentCounts summarises a content run; storage-derived except the agent-output counters.
+type ContentCounts struct {
+	Proposed           int `json:"proposed"`            // drafts in the agent output
+	StructuralRejected int `json:"structural_rejected"` // rejected by the content_drafts.v1 structural rules
+	DuplicatesSkipped  int `json:"duplicates_skipped"`  // near-duplicates not stored
+	Stored             int `json:"stored"`
+	Draft              int `json:"draft"`
+	NeedsReview        int `json:"needs_review"`
+	Approved           int `json:"approved"`
+	Rejected           int `json:"rejected"`
+	Blocked            int `json:"blocked"`
+	Placeholders       int `json:"placeholders"`     // [ISI: ...] markers across stored drafts
+	ClaimsToVerify     int `json:"claims_to_verify"` // claims without supporting evidence across stored drafts
+	EvidenceLinks      int `json:"evidence_links"`
 }

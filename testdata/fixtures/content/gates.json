@@ -1,0 +1,225 @@
+{
+ "drafts": [
+  {
+   "content_type": "instagram_caption",
+   "variant": 1,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "Harga jelas.",
+   "headline": "",
+   "body": "Kami membeli emas Rp 1.000.000 per gram.",
+   "call_to_action": "Datang ke toko kami.",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "instagram_caption",
+   "variant": 2,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "Cerita pelanggan.",
+   "headline": "",
+   "body": "Kata Bu Sari: prosesnya jelas sekali dan menenangkan.",
+   "call_to_action": "Baca kisahnya.",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "instagram_caption",
+   "variant": 3,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "Referensi fiktif.",
+   "headline": "",
+   "body": "Kami akan menimbang di depan Anda.",
+   "call_to_action": "Simak.",
+   "supporting_evidence_refs": [
+    "tidak-ada.md#9"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "instagram_caption",
+   "variant": 4,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "Variasi keempat.",
+   "headline": "",
+   "body": "Kami akan menimbang di depan Anda dengan tenang.",
+   "call_to_action": "Simak.",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "headline_variants",
+   "variant": 1,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "",
+   "headline": "Pertanyaan tentang KTP",
+   "body": "Sudut uji: identitas.",
+   "call_to_action": "",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#3"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "headline_variants",
+   "variant": 2,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "",
+   "headline": "Toko kami buka setiap hari",
+   "body": "Sudut uji: kehadiran.",
+   "call_to_action": "",
+   "supporting_evidence_refs": [
+    "manual:unvalidated#1"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "headline_variants",
+   "variant": 3,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "",
+   "headline": "Toko kami buka setiap hari",
+   "body": "Sudut uji: kehadiran.",
+   "call_to_action": "",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "education",
+   "variant": 1,
+   "channel": "situs",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "",
+   "headline": "Jual emas sekarang",
+   "body": "Hanya hari ini, buruan bawa perhiasan Anda!!",
+   "call_to_action": "Datang sebelum kehabisan.",
+   "supporting_evidence_refs": [
+    "artikel-edukasi-contoh.json#1"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "whatsapp_message",
+   "variant": 1,
+   "channel": "whatsapp",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "",
+   "headline": "",
+   "body": "Uang cair dalam 15 menit setelah penimbangan.",
+   "call_to_action": "Balas pesan ini.",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "article_faq",
+   "variant": 1,
+   "channel": "situs",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "",
+   "headline": "Mengapa memilih kami",
+   "body": "Pertanyaan: Apakah banyak yang puas?\nJawaban: 90% penjual puas. Kunjungi kami di Jl. Contoh No. 5.",
+   "call_to_action": "",
+   "supporting_evidence_refs": [
+    "artikel-edukasi-contoh.json#1"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "short_video_script",
+   "variant": 1,
+   "channel": "instagram_reels",
+   "target_segment": "AU1",
+   "objective": "Fixture gerbang: setiap draf memuat satu pelanggaran yang harus ditangkap kode.",
+   "hook": "Saatnya menjual.",
+   "headline": "",
+   "body": "Pembuka: Harga emas sedang naik.\nIsi: Jual sekarang dan pasti untung.\nPenutup: Simpan video ini.",
+   "call_to_action": "Ikuti akun ini.",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  }
+ ],
+ "notes": "Fixture gerbang Fase 4."
+}

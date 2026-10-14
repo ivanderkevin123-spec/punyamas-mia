@@ -25,6 +25,7 @@ type DimView struct {
 
 type ApprovalView struct {
 	Decision, By, Note, At string
+	Version                int // versioned subjects (content drafts); 0 otherwise
 }
 
 type OppView struct {
@@ -112,7 +113,7 @@ func (r *Renderer) OppViewFor(ctx context.Context, op *domain.Opportunity) (*Opp
 		return nil, err
 	}
 	for _, a := range apps {
-		v.Approvals = append(v.Approvals, ApprovalView{Decision: a.Decision, By: a.DecidedBy, Note: a.Note, At: a.DecidedAt})
+		v.Approvals = append(v.Approvals, ApprovalView{Decision: a.Decision, By: a.DecidedBy, Note: a.Note, At: a.DecidedAt, Version: a.SubjectVersion})
 		v.LatestDecision = a.Decision
 	}
 	return v, nil

@@ -212,7 +212,43 @@ type Config struct {
 	Sources  Sources
 	Limits   Limits
 	Scoring  Scoring
+	Content  Content
 	Hash     string
+}
+
+// ContentTypes are the content types the Phase 4 Content Agent supports (mirrored by a CHECK constraint in 0003_content.sql).
+var ContentTypes = []string{"instagram_caption", "headline_variants", "education", "short_video_script", "whatsapp_message", "article_faq"}
+
+// ContentFields are the public text fields of a draft that types configure.
+var ContentFields = []string{"hook", "headline", "body", "call_to_action"}
+
+// Content holds the Phase 4 Content Agent rules (config/content.yaml); Hash is the sha256 prefix of the file.
+type Content struct {
+	Version             string                 `yaml:"version"`
+	MaxCallsPerRun      int                    `yaml:"max_calls_per_run"`
+	DuplicateSimilarity float64                `yaml:"duplicate_similarity"`
+	DefaultTypes        []string               `yaml:"default_types"`
+	Types               map[string]ContentType `yaml:"types"`
+	LanguageRules       []ContentRule          `yaml:"language_rules"`
+	ReviewChecklist     []string               `yaml:"review_checklist"`
+	Hash                string                 `yaml:"-"`
+}
+
+type ContentType struct {
+	Label     string         `yaml:"label"`
+	Channels  []string       `yaml:"channels"`
+	Variants  int            `yaml:"variants"`
+	Required  []string       `yaml:"required"`
+	MaxRunes  map[string]int `yaml:"max_runes"`
+	Sections  []string       `yaml:"sections"`
+	Checklist []string       `yaml:"checklist"`
+}
+
+type ContentRule struct {
+	Category string `yaml:"category"`
+	Pattern  string `yaml:"pattern"`
+	Reason   string `yaml:"reason"`
+	Action   string `yaml:"action"` // block | review
 }
 
 // Scoring holds the Phase 3 evaluation rules (config/scoring.yaml); Hash is the sha256 of the file.
@@ -252,7 +288,7 @@ type ConflictRules struct {
 	MinSimilarity   float64 `yaml:"min_similarity"`
 }
 
-var files = []string{"brand.yaml", "business.yaml", "marketing-policy.yaml", "research-sources.yaml", "agent-limits.yaml", "scoring.yaml"}
+var files = []string{"brand.yaml", "business.yaml", "marketing-policy.yaml", "research-sources.yaml", "agent-limits.yaml", "scoring.yaml", "content.yaml"}
 
 var secretPattern = regexp.MustCompile(`sk-ant-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY`)
 
@@ -357,6 +393,11 @@ func Load(root string) (*Config, error) {
 	}
 	sh := sha256.Sum256(raw["scoring.yaml"])
 	cfg.Scoring.Hash = hex.EncodeToString(sh[:])[:16]
+	if err := decodeStrict(raw["content.yaml"], &cfg.Content); err != nil {
+		return nil, fmt.Errorf("content.yaml: %w", err)
+	}
+	ch := sha256.Sum256(raw["content.yaml"])
+	cfg.Content.Hash = hex.EncodeToString(ch[:])[:16]
 
 	if v := os.Getenv("MIA_WORKSPACE_ROOT"); v != "" {
 		cfg.Sources.Workspace.Root = v
@@ -500,6 +541,7 @@ func (c *Config) Validate() error {
 	if len(sc.KPIs) == 0 || len(sc.Segments) == 0 || len(sc.Pillars) == 0 || len(sc.Efforts) == 0 {
 		add("scoring kpis, segments, pillars and efforts must be non-empty")
 	}
+	c.validateContent(add)
 	if len(errs) > 0 {
 		return errors.New("config validation failed:\n  - " + strings.Join(errs, "\n  - "))
 	}
@@ -515,4 +557,78 @@ func (c *Config) StepTimeout(step string) int {
 		return v
 	}
 	return 60
+}
+
+func (c *Config) validateContent(add func(format string, a ...any)) {
+	ct := c.Content
+	if ct.MaxCallsPerRun < 1 || ct.MaxCallsPerRun > 3 {
+		add("content max_calls_per_run must be between 1 and 3")
+	}
+	if ct.DuplicateSimilarity <= 0 || ct.DuplicateSimilarity > 1 {
+		add("content duplicate_similarity must be in (0, 1]")
+	}
+	known := map[string]bool{}
+	for _, t := range ContentTypes {
+		known[t] = true
+	}
+	fields := map[string]bool{}
+	for _, f := range ContentFields {
+		fields[f] = true
+	}
+	if len(ct.Types) == 0 {
+		add("content types must be non-empty")
+	}
+	for name, t := range ct.Types {
+		if !known[name] {
+			add("content type %q is not supported (supported: %s)", name, strings.Join(ContentTypes, ", "))
+			continue
+		}
+		if t.Label == "" || len(t.Channels) == 0 {
+			add("content type %s needs a label and at least one channel", name)
+		}
+		if t.Variants < 1 || t.Variants > 5 {
+			add("content type %s variants must be between 1 and 5", name)
+		}
+		for f, n := range t.MaxRunes {
+			if !fields[f] || n < 0 {
+				add("content type %s max_runes.%s is invalid", name, f)
+			}
+		}
+		hasBody := false
+		for _, f := range t.Required {
+			if !fields[f] {
+				add("content type %s required field %q is unknown", name, f)
+			}
+			if t.MaxRunes[f] <= 0 {
+				add("content type %s requires %s but max_runes.%s is not positive", name, f, f)
+			}
+			if f == "body" {
+				hasBody = true
+			}
+		}
+		if !hasBody {
+			add("content type %s must require body", name)
+		}
+	}
+	if len(ct.DefaultTypes) == 0 {
+		add("content default_types must be non-empty")
+	}
+	for _, d := range ct.DefaultTypes {
+		if _, ok := ct.Types[d]; !ok {
+			add("content default_types entry %q has no type definition", d)
+		}
+	}
+	for i, r := range ct.LanguageRules {
+		if r.Category == "" || r.Pattern == "" {
+			add("content language_rules[%d] needs category and pattern", i)
+		} else if _, err := regexp.Compile(r.Pattern); err != nil {
+			add("content language_rules %s: %v", r.Category, err)
+		}
+		if r.Action != "block" && r.Action != "review" {
+			add("content language_rules %s action must be block or review", r.Category)
+		}
+	}
+	if len(ct.ReviewChecklist) == 0 {
+		add("content review_checklist must be non-empty")
+	}
 }

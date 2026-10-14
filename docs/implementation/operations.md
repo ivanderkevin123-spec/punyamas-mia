@@ -1,4 +1,4 @@
-# MIA — Operations Guide (Phase 3)
+# MIA — Operations Guide (Phase 4)
 
 English for engineers; command output and report labels are Indonesian.
 
@@ -86,6 +86,7 @@ Files in `config/` (validated strictly at start; unknown keys are errors; secret
 | `marketing-policy.yaml` | nine banned-claim categories ported from `brand-oracle.mjs` |
 | `business.yaml` | facts FB1–FB14 from `B4-fakta.json`, mandatory fill-ins |
 | `brand.yaml` | positioning, pillars, tone, audiences, key messages, tagline candidates from B1 |
+| `content.yaml` | Phase 4 Content Agent rules applied by code: call cap per run, duplicate threshold, default content types, per-type channels/variants/required fields/rune limits/sections/checklist, marketing-language rules (`block` or `review`), base review checklist; hashed on every content draft (`content_config_hash`) |
 | `scoring.yaml` | Phase 3 Strategy Agent rules applied by code: tier thresholds, duplicate thresholds, conflict heuristic (negation pattern + minimum similarity), unsupported-claim patterns, store-dependency terms, KPI/segment/pillar/effort enumerations; hashed into every strategy run and opportunity (`scoring_config_hash`) |
 
 Environment (`.env`, git-ignored; see `.env.example`): `MIA_DATA_DIR`, `MIA_REPORTS_DIR`, `MIA_DRAFTS_DIR`, `MIA_WORKSPACE_ROOT`, `MIA_PROVIDER`, `MIA_MODEL`, `MIA_FIXTURE_KEY`, `MIA_LOG_LEVEL=debug`.
@@ -114,6 +115,20 @@ Steps of a research run: `import → workspace → dedup → research_agent → 
 
 Steps of a strategy run: `load_evidence → conflicts → strategy_agent → evaluate → report`. `load_evidence` requires the parent research run to be `completed` or `completed_with_warnings` with at least one validated item. The Strategy Agent is called at most **twice per run** (one call plus one bounded repair), counted from persisted executions including errors and timeouts; a run whose two calls are spent fails with `batas 2 panggilan` and must be started again with `--from-run` (the failed run keeps its report). `--resume` re-renders the report from stored data and never reuses a stale one; `--force` re-runs completed steps but never duplicates stored opportunities. See `docs/architecture/strategy-agent.md`.
 
+Content commands (Phase 4; every draft is a DRAF and nothing is published, sent or scheduled):
+
+```bash
+./bin/mia run content --opportunity OPP_ID [--types instagram_caption,education] [--fixture KEY] [--regenerate]
+./bin/mia run content --resume RUN_ID [--force]
+./bin/mia content list --run RUN_ID | --opportunity OPP_ID
+./bin/mia content show --id DRAFT_ID
+./bin/mia content review --id DRAFT_ID --decision approved|rejected --note "..." [--by NAME]
+./bin/mia content revise --id DRAFT_ID [--hook T] [--headline T] [--body-file PATH] [--cta T] --note "..."
+./bin/mia content export --id DRAFT_ID [--out RELATIVE_NAME]   # drafts/content/<id>.md; blocked/rejected drafts are not exported
+```
+
+Steps of a content run: `load_opportunity → content_agent → evaluate_content → report`. Only opportunities whose status is `approved` with a matching latest approval record, a completed strategy run and still-validated evidence are eligible; refusals create no run and make no agent call. A second generation for an opportunity with drafts needs `--regenerate`. The Content Agent is called at most `max_calls_per_run` (2) times per run. `review approved` means approved for the next manual stage, never a publication permission; `revise` appends a version and returns the draft to `needs_review`. See `docs/architecture/content-agent.md`.
+
 Local mock walkthrough:
 
 ```bash
@@ -124,6 +139,11 @@ make build
 ./bin/mia approve opportunity --id <opp-id> --decision approved --note "Uji konten pertama"
 ./bin/mia export brief --id <opp-id>                            # drafts/<opp-id>.md, then hand over manually
 ./bin/mia run strategy --from-run <research-run-id> --fixture gates   # demo of every gate failure (blocked/rejected)
+./bin/mia run content --opportunity <approved-opp-id>            # fixture key defaults to <strategy fixture key>-<topic_key>
+./bin/mia content list --run <content-run-id>
+./bin/mia content review --id <draft-id> --decision approved --note "Draf diperiksa"
+./bin/mia content export --id <draft-id>                          # drafts/content/<draft-id>.md, labelled DRAF
+./bin/mia run content --opportunity <approved-opp-id> --fixture gates --regenerate   # demo of every content gate
 ```
 
 ## 4. Import file formats
@@ -143,13 +163,14 @@ Rules: facts need an excerpt; dates are `YYYY-MM-DD` or RFC 3339; files containi
 
 ## 6. Mock provider and fixtures
 
-`testdata/fixtures/<agent>/<fixture-key>.json` (default key = inputs directory name; fallback `default.json`). Missing fixture → empty output with a warning, never a fabricated finding. Usage tokens are estimated (runes/4) and cost is USD 0 and measurable. Strategy fixtures: `strategy/sample-batch.json` (three Tier A proposals, one duplicate that is merged, one store-dependent hypothesis), `strategy/gates.json` (one proposal per gate failure plus one valid store-dependent proposal), `strategy/conflict.json` (used by the conflict test), `strategy/default.json` (empty). The sha256 of the replayed fixture is recorded on the run and on every opportunity (`fixture_hash`).
+`testdata/fixtures/<agent>/<fixture-key>.json` (default key = inputs directory name; for content runs `<strategy fixture key>-<opportunity topic_key>`; fallback `default.json`). Missing fixture → empty output with a warning, never a fabricated finding. Usage tokens are estimated (runes/4) and cost is USD 0 and measurable. Strategy fixtures: `strategy/sample-batch.json` (three Tier A proposals, one duplicate that is merged, one store-dependent hypothesis), `strategy/gates.json` (one proposal per gate failure plus one valid store-dependent proposal), `strategy/conflict.json` (used by the conflict test), `strategy/default.json` (empty). The sha256 of the replayed fixture is recorded on the run and on every opportunity (`fixture_hash`). Content fixtures: `content/sample-batch-transparansi_penimbangan.json` (ten drafts: five pass every gate, five need review for placeholders or a claim to verify), `content/gates.json` (one violation per draft: price, testimonial, fictitious, cross-opportunity and unvalidated evidence, false urgency, process time, statistic plus address, guaranteed profit plus price trend, a fourth caption variant, a near-duplicate), `content/default.json` (empty). Mock output never says anything about the quality of a real model.
 
 ## 7. Data, backups, logs
 
 - `data/mia.sqlite` (0600, WAL), `data/executions/*.request|response.txt` (0600, full prompts and raw outputs), `data/logs/mia-YYYY-MM-DD.jsonl` (redacted).
 - Cost ledger semantics (A7): a row per provider call. `estimated = 0` with `unit_price_source = provider_reported` or `price_table:<date>` is actual spend; `estimated = 1` with `uncertain:timeout` or `uncertain:error` is the pre-call estimate booked for a call whose outcome is unknown (never an actual charge); `unmeasurable:estimate` is an estimate for a provider that reports no usage. Ceilings count all rows, so repeated failures cannot bypass them. At most one row exists per execution: a later reconciliation replaces the uncertain row. Reports show total, actual and uncertain figures separately. Authentication and billing rejections book nothing.
 - Phase 3 tables: `opportunities` (evaluation, tier, brief JSON, config/scoring/fixture hashes, execution id) and `opportunity_evidence` (opportunity → validated item, role). Review decisions go to `approval_records` (append-only; the opportunity's `status` mirrors the latest decision, the evaluation is never edited).
+- Phase 4 tables: `content_drafts` (current text, status, version, content hash, provenance hashes), `content_draft_versions` (every text version, append-only), `content_draft_evidence` (composite foreign keys: only the opportunity's own evidence). Content reviews are `approval_records` rows with `subject_type = content_draft`, `subject_version` and `subject_hash`; since migration 0003 every `approval_records` row is append-only (update/delete abort). `drafts/content/` holds exports for manual handoff.
 - Backup: copy `data/mia.sqlite` while no run is active (a `mia backup` command is planned for Phase 7).
 - `reports/` and `drafts/` are plain files; both are git-ignored. `drafts/<opportunity-id>.md` is the exported brief for manual handoff to `bots/punyamas` (MIA never writes there).
 
@@ -168,4 +189,9 @@ Rules: facts need an excerpt; dates are `YYYY-MM-DD` or RFC 3339; files containi
 | strategy run `failed` at `load_evidence` with "berstatus ..." | the research run is not completed or has no validated items | finish the research run (`--resume`), then `run strategy --from-run` again |
 | `batas 2 panggilan Agen Strategi per run sudah tercapai` | both calls of this run were spent (errors and timeouts count) | fix the cause, then start a new run with `run strategy --from-run RUN_ID` |
 | `export brief` exits 2 with "hanya peluang berstatus approved" | the opportunity is not approved (or a later decision changed it) | record `--decision approved` first; blocked/rejected opportunities can never be approved |
+| `run content` refused: "tidak memenuhi syarat untuk Agen Konten" | the opportunity is not approved, its history disagrees, its strategy run is not completed, or an evidence item is no longer validated | the message lists each reason; approve the opportunity or fix the evidence, then run again |
+| `run content` refused: "draf sudah ada untuk peluang ini" | drafts already exist for the opportunity | review the existing drafts, or add `--regenerate` deliberately |
+| `content review` refused: "diblokir gerbang kode" | a hard gate failed | `content revise` the text (gates run again) or regenerate |
+| `content review` refused: "berubah di luar MIA" | the stored text no longer matches its hash | record the change with `content revise`, then review |
+| `content export` refused ("ruang kerja", "..") | target inside the workspace, absolute, or escaping `drafts/content` | use a relative `--out` name; keep `MIA_DRAFTS_DIR` outside the workspace |
 | `export brief` refuses the path ("baca-saja") | `--out` points inside the Punyamas workspace | export elsewhere (default `drafts/`) and hand over manually |

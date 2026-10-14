@@ -130,7 +130,22 @@ func MDCode(s string) string {
 	return strings.Join(strings.Fields(strings.ReplaceAll(s, "`", "'")), " ")
 }
 
-var mdFuncs = texttpl.FuncMap{"text": MDText, "cell": MDCell, "code": MDCode}
+// MDBlock renders an untrusted multi-line value as a blockquote: every line is escaped and prefixed with
+// "> ", so the value cannot end the quote, start a heading or list, or imitate report fields.
+func MDBlock(s string) string {
+	lines := strings.Split(strings.ReplaceAll(s, "\r\n", "\n"), "\n")
+	out := make([]string, 0, len(lines))
+	for _, l := range lines {
+		if t := MDText(l); t != "" {
+			out = append(out, "> "+t)
+		} else {
+			out = append(out, ">")
+		}
+	}
+	return strings.Join(out, "\n")
+}
+
+var mdFuncs = texttpl.FuncMap{"text": MDText, "cell": MDCell, "code": MDCode, "quote": MDBlock}
 
 // Build assembles the view model from the store.
 func (r *Renderer) Build(ctx context.Context, run *domain.Run, sum *domain.RunSummary) (*Data, error) {

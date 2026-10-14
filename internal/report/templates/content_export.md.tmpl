@@ -1,0 +1,12 @@
+# DRAF KONTEN — {{text .Draft.TypeLabel}} varian {{.Draft.Variant}} — {{text .BrandName}}
+
+> **DRAF — BELUM DIPUBLIKASIKAN DAN BUKAN IZIN PUBLIKASI.** Diekspor dari MIA pada {{cell .Generated}} untuk serah terima manual. Status: **{{cell .Draft.StatusLabel}}** (versi {{.Draft.Version}}). Publikasi memerlukan persetujuan CEO (D-005), syarat M1 §2, dan pengisian semua [ISI: ...]. MIA tidak menerbitkan, mengirim, atau menjadwalkan konten.
+
+| Draf | Status | Versi | Isian belum diisi | Klaim perlu verifikasi | Siap serah terima |
+|---|---|---|---|---|---|
+| `{{code .Draft.ID}}` | {{cell .Draft.Status}} | {{.Draft.Version}} | {{len .Draft.Placeholders}} | {{len .Draft.ClaimsToVerify}} | {{if .Draft.Readiness.Ready}}YA{{else}}TIDAK{{end}} |
+{{with .Opportunity}}
+**Peluang sumber:** {{text .Title}} (`{{code .ID}}`, tingkat {{cell .Tier}}, status {{cell .StatusLabel}})
+{{end}}{{template "draft" .Draft}}
+---
+_Ekspor ini tidak mengubah draf yang tersimpan. Serahkan secara manual melalui proses ruang kerja Punyamas; MIA tidak pernah menulis ke ruang kerja itu._

@@ -1,4 +1,4 @@
-// Command mia is the Punyamas Marketing Intelligence Agent CLI (Phase 3: mock-only).
+// Command mia is the Punyamas Marketing Intelligence Agent CLI (Phase 4: mock-only).
 package main
 
 import (
@@ -27,9 +27,9 @@ import (
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/store"
 )
 
-const version = "0.3.0-phase3"
+const version = "0.4.0-phase4"
 
-const usage = `mia — Punyamas Marketing Intelligence Agent (Fase 3, mode mock)
+const usage = `mia — Punyamas Marketing Intelligence Agent (Fase 4, mode mock)
 
 Perintah:
   run research --inputs DIR [--fixture KEY] [--until STEP] [--force]   jalankan alur riset
@@ -44,6 +44,13 @@ Perintah:
   opportunities --run RUN_ID                                           daftar peluang sebuah run strategi
   approve opportunity --id ID --decision approved|rejected|needs_more_evidence --note TEKS
   export brief --id ID [--out PATH]                                    ekspor brief peluang yang disetujui untuk serah terima manual
+  run content --opportunity ID [--types a,b] [--fixture KEY] [--regenerate]   Agen Konten: draf dari peluang approved (Fase 4)
+  run content --resume RUN_ID [--force]                                lanjutkan run konten
+  content list --run RUN_ID | --opportunity ID                         daftar draf dengan status, isian, dan kesiapan
+  content show --id DRAFT_ID                                           rincian draf, bukti, temuan, dan provenance
+  content review --id DRAFT_ID --decision approved|rejected --note TEKS   keputusan peninjau (bukan izin publikasi)
+  content revise --id DRAFT_ID [--hook T] [--headline T] [--body-file PATH] [--cta T] --note TEKS
+  content export --id DRAFT_ID [--out NAMA_RELATIF]                    ekspor DRAF ke drafts/content untuk serah terima manual
   version
 
 Opsi umum: --root DIR (default: direktori kerja). Kode keluar: 0 ok, 1 kesalahan, 2 run gagal atau perlu tinjauan.
@@ -54,14 +61,15 @@ func main() {
 }
 
 type app struct {
-	cfg   *config.Config
-	store *store.Store
-	log   *slog.Logger
-	orch  *orchestrator.Orchestrator
-	rend  *report.Renderer
-	ids   ids.Generator
-	now   func() time.Time
-	logF  *os.File
+	cfg     *config.Config
+	store   *store.Store
+	log     *slog.Logger
+	orch    *orchestrator.Orchestrator
+	rend    *report.Renderer
+	ids     ids.Generator
+	now     func() time.Time
+	logF    *os.File
+	checker *brand.Checker
 }
 
 func newApp(root string, stderr io.Writer) (*app, error) {
@@ -98,7 +106,7 @@ func newApp(root string, stderr io.Writer) (*app, error) {
 	gate := &budget.Gate{Store: st, Caps: cfg.Limits.Caps, Prices: cfg.Limits.PriceTable, Now: now, IDs: gen}
 	rend := &report.Renderer{Store: st, Cfg: cfg, Now: now}
 	orch := orchestrator.New(orchestrator.Deps{Cfg: cfg, Store: st, Provider: prov, Budget: gate, Checker: checker, Renderer: rend, Log: logger, IDs: gen, Now: now})
-	return &app{cfg: cfg, store: st, log: logger, orch: orch, rend: rend, ids: gen, now: now, logF: logF}, nil
+	return &app{cfg: cfg, store: st, log: logger, orch: orch, rend: rend, ids: gen, now: now, logF: logF, checker: checker}, nil
 }
 
 func (a *app) close() {
@@ -122,7 +130,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	case "run":
 		if len(args) < 2 {
-			fmt.Fprintln(stderr, "gunakan: mia run research --inputs DIR  |  mia run strategy --from-run RUN_ID")
+			fmt.Fprintln(stderr, "gunakan: mia run research --inputs DIR  |  mia run strategy --from-run RUN_ID  |  mia run content --opportunity ID")
 			return 1
 		}
 		switch args[1] {
@@ -130,8 +138,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return cmdRun(ctx, args[2:], "", stdout, stderr)
 		case "strategy":
 			return cmdRunStrategy(ctx, args[2:], stdout, stderr)
+		case "content":
+			return cmdRunContent(ctx, args[2:], stdout, stderr)
 		default:
-			fmt.Fprintln(stderr, "gunakan: mia run research --inputs DIR  |  mia run strategy --from-run RUN_ID")
+			fmt.Fprintln(stderr, "gunakan: mia run research --inputs DIR  |  mia run strategy --from-run RUN_ID  |  mia run content --opportunity ID")
 			return 1
 		}
 	case "import":
@@ -164,6 +174,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	case "opportunities":
 		return cmdOpportunities(ctx, args[1:], stdout, stderr)
+	case "content":
+		return cmdContent(ctx, args[1:], stdout, stderr)
 	case "export":
 		if len(args) < 2 || args[1] != "brief" {
 			fmt.Fprintln(stderr, "gunakan: mia export brief --id ID [--out PATH]")
@@ -215,9 +227,10 @@ func printSummary(w io.Writer, sum *domain.RunSummary) {
 		}
 		fmt.Fprintln(w, line)
 	}
-	c := sum.Counts
-	fmt.Fprintf(w, "  sumber=%d butir=%d (reuse %d) fakta=%d interpretasi=%d hipotesis=%d duplikat=%d ditolak=%d mencurigakan=%d klaim=%d\n",
-		c.Sources, c.ItemsImported, c.ItemsReused, c.Facts, c.Interpretations, c.Hypotheses, c.Duplicates, c.Rejected, c.Suspicious, c.ClaimFlags)
+	if c := sum.Counts; sum.Kind != "content" {
+		fmt.Fprintf(w, "  sumber=%d butir=%d (reuse %d) fakta=%d interpretasi=%d hipotesis=%d duplikat=%d ditolak=%d mencurigakan=%d klaim=%d\n",
+			c.Sources, c.ItemsImported, c.ItemsReused, c.Facts, c.Interpretations, c.Hypotheses, c.Duplicates, c.Rejected, c.Suspicious, c.ClaimFlags)
+	}
 	cost := fmt.Sprintf("USD %.4f", sum.CostUSD)
 	if !sum.CostMeasurable {
 		cost += " (tidak dapat diukur sepenuhnya; estimasi)"
@@ -342,9 +355,12 @@ func cmdReport(ctx context.Context, args []string, stdout, stderr io.Writer) int
 		sum.Status = r.Status
 	}
 	var md, html string
-	if r.Kind == "strategy" {
+	switch r.Kind {
+	case "strategy":
 		md, html, err = a.rend.RenderStrategy(ctx, r, &sum)
-	} else {
+	case "content":
+		md, html, err = a.rend.RenderContent(ctx, r, &sum)
+	default:
 		md, html, err = a.rend.Render(ctx, r, &sum)
 	}
 	if err != nil {

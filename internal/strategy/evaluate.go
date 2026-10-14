@@ -12,6 +12,7 @@ import (
 
 	agent "github.com/ivanderkevin123-spec/punyamas-mia/internal/agent/strategy"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/brand"
+	"github.com/ivanderkevin123-spec/punyamas-mia/internal/claims"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/config"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/domain"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/research/dedup"
@@ -109,37 +110,22 @@ type Result struct {
 	Brief          Brief
 }
 
-type claimRule struct {
-	category string
-	re       *regexp.Regexp
-	reason   string
-}
-
 type Evaluator struct {
 	cfg        *config.Config
 	checker    *brand.Checker
-	claims     []claimRule
+	claims     *claims.Scanner
 	storeTerms []string
 	kpis       map[string]bool
 	kpisNow    map[string]bool
 	pillars    map[string]bool
-	allowedNum map[string]bool
 }
 
-var (
-	numberRe = regexp.MustCompile(`\d+(?:[.,]\d+)*`)
-	idTokens = regexp.MustCompile(`(?:\b(?:[OB]\d{1,2}|AU\d|PM\d|TG\d|FB\d{1,2}|KP\d|CT\d{1,2}|M\d|L\d{1,2}|Q\d{1,3}|N\d{1,3}|D-\d{3}|T1-#\d)\b|#\d{1,2}\b|§\s?\d+)`)
-)
-
 func New(cfg *config.Config, checker *brand.Checker) (*Evaluator, error) {
-	e := &Evaluator{cfg: cfg, checker: checker, kpis: map[string]bool{}, kpisNow: map[string]bool{}, pillars: map[string]bool{}, allowedNum: map[string]bool{}}
-	for _, r := range cfg.Scoring.UnsupportedClaims {
-		re, err := regexp.Compile(r.Pattern)
-		if err != nil {
-			return nil, fmt.Errorf("unsupported_claims %s: %w", r.Category, err)
-		}
-		e.claims = append(e.claims, claimRule{category: r.Category, re: re, reason: r.Reason})
+	sc, err := claims.New(cfg.Scoring.UnsupportedClaims, cfg.Business.AllowedNumbers)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported_claims: %w", err)
 	}
+	e := &Evaluator{cfg: cfg, checker: checker, claims: sc, kpis: map[string]bool{}, kpisNow: map[string]bool{}, pillars: map[string]bool{}}
 	for _, t := range cfg.Scoring.StoreDependencyTerms {
 		e.storeTerms = append(e.storeTerms, strings.ToLower(t))
 	}
@@ -151,9 +137,6 @@ func New(cfg *config.Config, checker *brand.Checker) (*Evaluator, error) {
 	}
 	for _, p := range cfg.Scoring.Pillars {
 		e.pillars[p] = true
-	}
-	for _, n := range cfg.Business.AllowedNumbers {
-		e.allowedNum[n] = true
 	}
 	return e, nil
 }
@@ -407,28 +390,19 @@ func (e *Evaluator) evaluateOne(c *candidate, byID map[string]Evidence) Result {
 	}
 	r.Gates = append(r.Gates, g3)
 	g3b := GateResult{Gate: "factual_claims", Passed: true}
-	for _, cr := range e.claims {
-		if m := cr.re.FindString(text); m != "" {
-			g3b.Passed = false
-			g3b.Details = append(g3b.Details, fmt.Sprintf("%s (%q): %s", cr.category, strings.TrimSpace(m), cr.reason))
-		}
+	for _, f := range e.claims.Categories(text) {
+		g3b.Passed = false
+		g3b.Details = append(g3b.Details, fmt.Sprintf("%s (%q): %s", f.Category, f.Match, f.Reason))
 	}
 	// Numbers in generated text must appear in cited evidence or in the allowed list.
-	allowed := map[string]bool{}
-	for k := range e.allowedNum {
-		allowed[k] = true
-	}
+	var support []string
 	for _, id := range c.ids {
 		it := byID[id]
-		for _, n := range numberRe.FindAllString(it.Statement+" "+it.Excerpt+" "+it.Title, -1) {
-			allowed[n] = true
-		}
+		support = append(support, it.Statement+" "+it.Excerpt+" "+it.Title)
 	}
-	for _, n := range numberRe.FindAllString(idTokens.ReplaceAllString(text, " "), -1) {
-		if !allowed[n] {
-			g3b.Passed = false
-			g3b.Details = append(g3b.Details, fmt.Sprintf("angka %q tidak muncul dalam bukti yang dikutip", n))
-		}
+	for _, n := range e.claims.UnsupportedNumbers(text, support...) {
+		g3b.Passed = false
+		g3b.Details = append(g3b.Details, fmt.Sprintf("angka %q tidak muncul dalam bukti yang dikutip", n))
 	}
 	if !g3b.Passed && r.Status != domain.OppBlocked {
 		r.Status = domain.OppRejected

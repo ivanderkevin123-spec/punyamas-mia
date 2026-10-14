@@ -1,0 +1,29 @@
+{{define "draft"}}
+### {{text .TypeLabel}} — varian {{.Variant}} — `{{code .ID}}`
+
+- **Status:** {{cell .StatusLabel}} · **Versi:** {{.Version}} · **Kanal:** {{cell .Channel}} · **Segmen:** {{cell .Segment}}
+- **Tujuan:** {{text .Objective}}
+- **Siap serah terima ke proses persetujuan publikasi:** {{if .Readiness.Ready}}YA (bukan izin publikasi; MIA tidak menerbitkan apa pun){{else}}TIDAK{{range .Readiness.Reasons}} — {{text .}}{{end}}{{end}}
+{{if .Hook}}- **Hook:** {{text .Hook}}
+{{end}}{{if .Headline}}- **Headline:** {{text .Headline}}
+{{end}}- **Isi draf (DRAF, belum dipublikasikan):**
+
+{{quote .Body}}
+
+{{if .CTA}}- **Ajakan (CTA):** {{text .CTA}}
+{{end}}- **Bukti pendukung (milik peluang, tervalidasi):**{{if not .Evidence}} tidak ada{{end}}
+{{range .Evidence}}  - `{{code .ID}}` `{{code .Ref}}` {{cell .Kind}} kualitas {{cell .Quality}} — {{text .Statement}}{{if .SourceName}} (sumber: {{text .SourceName}}){{end}}
+{{end}}{{range .BrandFacts}}- **Fakta usaha** `{{code .ID}}` ({{cell .Status}}): {{text .Text}}
+{{end}}{{range .SupportedClaims}}- **Fakta terdukung (bukti peluang atau fakta usaha):** {{text .Text}}
+{{end}}{{range .OtherClaims}}- **{{if eq .Kind "interpretation"}}Interpretasi pemasaran (bukan fakta){{else}}Hipotesis (bukan fakta){{end}}:** {{text .Text}}
+{{end}}{{range .ClaimsToVerify}}- **Klaim perlu verifikasi:** {{text .}}
+{{end}}{{range .Placeholders}}- **Isian wajib diisi:** `{{code .}}`
+{{end}}{{range .Findings}}- **Temuan {{cell .Gate}} {{cell .Category}}** ({{cell .Severity}}): {{text .Reason}}{{if .Match}} — "{{text .Match}}"{{end}}
+{{end}}{{range .Assumptions}}- Asumsi: {{text .}}
+{{end}}{{range .Risks}}- Risiko: {{text .}}
+{{end}}- **Checklist tinjauan manusia:**
+{{range .Checklist}}  - [ ] {{text .Text}}{{if eq .Source "agent"}} (usulan agen){{end}}
+{{end}}- **Riwayat versi (hanya-tambah):** {{range $i, $v := .Versions}}{{if $i}}; {{end}}v{{$v.Version}} oleh {{cell $v.Author}} {{cell $v.CreatedAt}} → {{cell $v.StatusAfter}}{{if $v.Note}} ({{text $v.Note}}){{end}}{{end}}
+- **Riwayat tinjauan (hanya-tambah):** {{if not .Reviews}}belum ada{{end}}{{range $i, $a := .Reviews}}{{if $i}}; {{end}}{{cell $a.At}} {{cell $a.Decision}} v{{$a.Version}} oleh {{text $a.By}}{{if $a.Note}} ({{text $a.Note}}){{end}}{{end}}
+- **Provenance:** peluang `{{code .OpportunityID}}` · run konten `{{code .RunID}}` · run strategi `{{code .StrategyRunID}}` · run riset `{{code .ResearchRunID}}` · eksekusi `{{code .ExecutionID}}` · konfigurasi `{{code .ConfigHash}}` · aturan konten `{{code .ContentConfigHash}}` · aturan skor `{{code .ScoringConfigHash}}` · fixture `{{code .FixtureHash}}` · hash isi v{{.Version}} `{{code .ContentHash}}`
+{{end}}

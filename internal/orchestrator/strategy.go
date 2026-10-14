@@ -8,12 +8,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	agentstrategy "github.com/ivanderkevin123-spec/punyamas-mia/internal/agent/strategy"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/domain"
-	"github.com/ivanderkevin123-spec/punyamas-mia/internal/provider"
-	"github.com/ivanderkevin123-spec/punyamas-mia/internal/research/dedup"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/store"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/strategy"
 )
@@ -199,43 +196,7 @@ func (o *Orchestrator) stepLoadEvidence(ctx context.Context, rc *runCtx) error {
 
 // loadEvidence builds the evaluator's view of the parent run's validated items.
 func (o *Orchestrator) loadEvidence(ctx context.Context, parentRunID string) ([]strategy.Evidence, map[string]strategy.Evidence, error) {
-	items, err := o.d.Store.ValidatedItemsForRun(ctx, parentRunID)
-	if err != nil {
-		return nil, nil, err
-	}
-	evid, err := o.d.Store.EvidenceForItems(ctx, parentRunID)
-	if err != nil {
-		return nil, nil, err
-	}
-	srcNames := map[string]string{}
-	var list []strategy.Evidence
-	byRef := map[string]strategy.Evidence{}
-	for _, it := range items {
-		e := strategy.Evidence{ID: it.ID, Ref: it.Ref, Kind: it.Kind, Quality: it.Quality, TopicKey: it.TopicKey, Title: it.Title, Statement: it.Statement, ConflictGroup: it.ConflictGroup}
-		for _, ev := range evid[it.ID] {
-			if ev.SourceID != "" {
-				e.SourceID = ev.SourceID
-				e.Excerpt = ev.Excerpt
-				name, ok := srcNames[ev.SourceID]
-				if !ok {
-					if s, err := o.d.Store.GetSource(ctx, ev.SourceID); err == nil {
-						name = s.Name
-					}
-					srcNames[ev.SourceID] = name
-				}
-				e.SourceName = name
-				break
-			}
-		}
-		if e.SourceID == "" {
-			// Agent-produced items: treat the producing execution as their "source" so independence counts are honest.
-			e.SourceID = "agent:" + it.AgentExecutionID
-			e.SourceName = "keluaran agen riset"
-		}
-		list = append(list, e)
-		byRef[it.Ref] = e
-	}
-	return list, byRef, nil
+	return strategy.LoadEvidence(ctx, o.d.Store, parentRunID)
 }
 
 func (o *Orchestrator) stepConflicts(ctx context.Context, rc *runCtx) error {
@@ -277,26 +238,6 @@ func (o *Orchestrator) stepConflicts(ctx context.Context, rc *runCtx) error {
 
 func (o *Orchestrator) stepStrategyAgent(ctx context.Context, rc *runCtx) error {
 	cfg := o.d.Cfg
-	caps := cfg.Limits.Caps
-	already, err := o.d.Store.CountExecutions(ctx, rc.run.ID, agentstrategy.Name)
-	if err != nil {
-		return err
-	}
-	if already >= agentstrategy.MaxCallsPerRun {
-		// The cap counts every call (errors and timeouts included); report the last outcome honestly.
-		last, status := "tidak diketahui", domain.StepFailed
-		if execs, err := o.d.Store.ExecutionsForRun(ctx, rc.run.ID); err == nil {
-			for _, x := range execs {
-				if x.AgentName == agentstrategy.Name {
-					last = x.Outcome
-				}
-			}
-		}
-		if last == "timeout" {
-			status = domain.StepTimedOut
-		}
-		return &stepErr{status: status, err: fmt.Errorf("batas %d panggilan Agen Strategi per run sudah tercapai (%d tercatat; hasil terakhir: %s); mulai run strategi baru dengan --from-run", agentstrategy.MaxCallsPerRun, already, last)}
-	}
 	list, _, err := o.loadEvidence(ctx, rc.parentRunID)
 	if err != nil {
 		return err
@@ -305,126 +246,35 @@ func (o *Orchestrator) stepStrategyAgent(ctx context.Context, rc *runCtx) error 
 	for _, e := range list {
 		ev = append(ev, agentstrategy.EvidenceForPrompt{Ref: e.Ref, Kind: e.Kind, Quality: e.Quality, TopicKey: e.TopicKey, Title: e.Title, Statement: e.Statement, SourceName: e.SourceName, ConflictGroup: e.ConflictGroup})
 	}
-	req := agentstrategy.BuildRequest(cfg, ev, rc.opts.FixtureKey)
-	req.Model = cfg.Limits.Provider.Model
-	req.MaxOutputTokens = caps.MaxOutputTokens
-	st := rc.steps[StepStrategyAgent]
-	maxCalls := caps.MaxCallsPerStep
-	if remaining := agentstrategy.MaxCallsPerRun - already; remaining < maxCalls {
-		maxCalls = remaining
-	}
-	var problems []string
-	for call := 1; call <= maxCalls; call++ {
-		if call > 1 {
-			req = agentstrategy.RepairRequest(req, problems)
-		}
-		estIn := provider.EstimateTokens(req.System + req.User)
-		estOut := caps.MaxOutputTokens
-		if estIn > caps.MaxInputTokens {
-			return failf("masukan agen (%d token) melebihi batas %d token", estIn, caps.MaxInputTokens)
-		}
-		dec, err := o.d.Budget.Allow(ctx, rc.run.ID, agentstrategy.Name, req.Model, estIn, estOut)
-		if err != nil {
-			return failf("pemeriksaan anggaran gagal: %v", err)
-		}
-		if dec.Warn {
-			rc.warn("anggaran bulanan mendekati plafon (terpakai USD %.4f dari USD %.2f)", dec.MonthSpent, caps.MonthlyCeilingUSD)
-		}
-		if !dec.Allowed {
-			return &stepErr{status: domain.StepBudgetExhausted, err: errors.New(dec.Reason)}
-		}
-		start := time.Now()
-		resp, usage, perr := o.d.Provider.Complete(ctx, req)
-		now := o.ts()
-		bctx := context.WithoutCancel(ctx)
-		exec := &domain.AgentExecution{ID: o.d.IDs.New("exec"), RunID: rc.run.ID, StepID: st.ID, AgentName: agentstrategy.Name, ProviderName: o.d.Provider.Name(), Model: req.Model,
-			SchemaVersion: agentstrategy.SchemaVersion, RequestHash: dedup.FileHash([]byte(req.System + "\n" + req.User)), InputTokens: usage.InputTokens, OutputTokens: usage.OutputTokens,
-			CacheReadTokens: usage.CacheReadTokens, CostMeasurable: usage.Measurable, LatencyMS: time.Since(start).Milliseconds(), Attempt: already + call, Outcome: "pending", CreatedAt: now}
-		exec.RequestPath, exec.ResponsePath = o.saveExchange(exec.ID, req, resp.Content)
-		if perr != nil {
-			exec.Outcome = "error"
-			if errors.Is(perr, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
-				exec.Outcome = "timeout"
+	return o.invokeAgent(ctx, rc, agentCall{
+		agent: agentstrategy.Name, label: "Agen Strategi", unit: "usulan", schema: agentstrategy.SchemaVersion, step: StepStrategyAgent,
+		maxPerRun: agentstrategy.MaxCallsPerRun, restartHint: "mulai run strategi baru dengan --from-run",
+		request: agentstrategy.BuildRequest(cfg, ev, rc.opts.FixtureKey), repair: agentstrategy.RepairRequest,
+		validate: func(content string) agentValidation {
+			out, perr := agentstrategy.ParseOutput(content)
+			if perr != nil {
+				return agentValidation{parseErr: perr}
 			}
-			exec.ErrorText = perr.Error()
-			exec.CostMeasurable = false
-			if err := o.d.Store.InsertExecution(bctx, exec); err != nil {
-				return err
+			valid, rejected := agentstrategy.Structural(out, cfg.Scoring)
+			var v agentValidation
+			if len(valid) == 0 && len(rejected) > 0 {
+				for _, r := range rejected {
+					v.problems = append(v.problems, fmt.Sprintf("usulan %d (%s): %s", r.Index, r.Title, strings.Join(r.Reasons, "; ")))
+				}
+				return v
 			}
-			if provider.Fatal(perr) {
-				return &stepErr{status: domain.StepFailed, err: fmt.Errorf("penyedia menolak (%v); tidak diulang", perr)}
-			}
-			rec, err := o.d.Budget.RecordUncertain(bctx, rc.run.ID, exec.ID, agentstrategy.Name, o.d.Provider.Name(), req.Model, estIn, estOut, exec.Outcome)
-			if err != nil {
-				return err
-			}
-			exec.CostUSD = rec.CostUSD
-			_ = o.d.Store.UpdateExecution(bctx, exec)
-			return &stepErr{status: domain.StepFailed, err: perr, retryable: provider.Retryable(perr)}
-		}
-		if err := o.d.Store.InsertExecution(bctx, exec); err != nil {
-			return err
-		}
-		cost, err := o.d.Budget.Record(bctx, rc.run.ID, exec.ID, agentstrategy.Name, o.d.Provider.Name(), req.Model, usage, estIn, estOut)
-		if err != nil {
-			return err
-		}
-		exec.CostUSD = cost.CostUSD
-		exec.CostMeasurable = !cost.Estimated
-		if resp.FixtureUsed != "" {
-			if b, err := os.ReadFile(resp.FixtureUsed); err == nil {
-				rc.sum.FixtureHash = dedup.FileHash(b)
-			}
-		}
-		for _, w := range resp.Warnings {
-			rc.warn("%s", w)
-		}
-		out, perr := agentstrategy.ParseOutput(resp.Content)
-		if perr != nil {
-			exec.Outcome = "invalid_output"
-			exec.ErrorText = perr.Error()
-			_ = o.d.Store.UpdateExecution(bctx, exec)
-			problems = []string{perr.Error()}
-			if call < maxCalls {
-				rc.warn("keluaran Agen Strategi tidak valid (percobaan %d): %v; meminta perbaikan", call, perr)
-				continue
-			}
-			return &stepErr{status: domain.StepFailed, err: fmt.Errorf("keluaran Agen Strategi tidak valid setelah %d percobaan: %w", call, perr)}
-		}
-		valid, rejected := agentstrategy.Structural(out, cfg.Scoring)
-		if len(valid) == 0 && len(rejected) > 0 {
-			exec.Outcome = "invalid_output"
-			problems = problems[:0]
 			for _, r := range rejected {
-				problems = append(problems, fmt.Sprintf("usulan %d (%s): %s", r.Index, r.Title, strings.Join(r.Reasons, "; ")))
+				v.warnings = append(v.warnings, fmt.Sprintf("usulan ditolak validasi struktural: %q: %s", r.Title, strings.Join(r.Reasons, "; ")))
 			}
-			exec.ErrorText = strings.Join(problems, " | ")
-			_ = o.d.Store.UpdateExecution(bctx, exec)
-			if call < maxCalls {
-				rc.warn("semua usulan ditolak validasi struktural (percobaan %d); meminta perbaikan", call)
-				continue
+			if len(valid) == 0 {
+				v.warnings = append(v.warnings, "Agen Strategi tidak mengusulkan peluang apa pun")
 			}
-			return &stepErr{status: domain.StepFailed, err: fmt.Errorf("semua usulan ditolak validasi struktural setelah %d percobaan", call)}
-		}
-		exec.Outcome = "ok"
-		if call > 1 {
-			exec.Outcome = "repaired"
-		}
-		if err := o.d.Store.UpdateExecution(bctx, exec); err != nil {
-			return err
-		}
-		for _, r := range rejected {
-			rc.warn("usulan ditolak validasi struktural: %q: %s", r.Title, strings.Join(r.Reasons, "; "))
-		}
-		if len(valid) == 0 {
-			rc.warn("Agen Strategi tidak mengusulkan peluang apa pun")
-		}
-		if strings.TrimSpace(out.Notes) != "" {
-			rc.warn("catatan agen: %s", strings.TrimSpace(out.Notes))
-		}
-		return nil
-	}
-	return failf("Agen Strategi tidak menghasilkan keluaran")
+			if strings.TrimSpace(out.Notes) != "" {
+				v.warnings = append(v.warnings, "catatan agen: "+strings.TrimSpace(out.Notes))
+			}
+			return v
+		},
+	})
 }
 
 func (o *Orchestrator) stepEvaluate(ctx context.Context, rc *runCtx) error {

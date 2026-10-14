@@ -44,6 +44,7 @@ const dedupThreshold = 0.8
 type Renderer interface {
 	Render(ctx context.Context, run *domain.Run, sum *domain.RunSummary) (mdPath, htmlPath string, err error)
 	RenderStrategy(ctx context.Context, run *domain.Run, sum *domain.RunSummary) (mdPath, htmlPath string, err error)
+	RenderContent(ctx context.Context, run *domain.Run, sum *domain.RunSummary) (mdPath, htmlPath string, err error)
 }
 
 type Deps struct {
@@ -61,6 +62,11 @@ type Deps struct {
 type Options struct {
 	InputsDir  string
 	FromRun    string // strategy runs: the research run that supplies validated evidence
+	// content runs: the approved opportunity, the content types (default from content.yaml) and an
+	// explicit request to generate again when drafts already exist for the opportunity.
+	OpportunityID string
+	ContentTypes  []string
+	Regenerate    bool
 	FixtureKey string
 	ResumeID   string
 	Until      string
@@ -114,7 +120,8 @@ type runCtx struct {
 	failed      bool
 	stopped     bool
 	costWarned  bool
-	parentRunID string // strategy runs: research run id whose items are the evidence base
+	parentRunID string // strategy runs: research run id whose items are the evidence base; content runs: strategy run id
+	content     *contentState
 }
 
 func (rc *runCtx) warn(format string, a ...any) {
@@ -380,12 +387,19 @@ func (o *Orchestrator) refreshCounts(ctx context.Context, rc *runCtx) error {
 		}
 	}
 	rc.sum.Counts = c
-	if rc.run.Kind == "strategy" {
+	switch rc.run.Kind {
+	case "strategy":
 		sc, err := o.strategyCounts(ctx, rc)
 		if err != nil {
 			return err
 		}
 		rc.sum.Strategy = sc
+	case "content":
+		cc, err := o.contentCounts(ctx, rc)
+		if err != nil {
+			return err
+		}
+		rc.sum.Content = cc
 	}
 	return nil
 }
@@ -1009,9 +1023,12 @@ func (o *Orchestrator) stepReport(ctx context.Context, rc *runCtx) error {
 	}
 	var md, html string
 	var err error
-	if rc.run.Kind == "strategy" {
+	switch rc.run.Kind {
+	case "strategy":
 		md, html, err = o.d.Renderer.RenderStrategy(ctx, rc.run, rc.sum)
-	} else {
+	case "content":
+		md, html, err = o.d.Renderer.RenderContent(ctx, rc.run, rc.sum)
+	default:
 		md, html, err = o.d.Renderer.Render(ctx, rc.run, rc.sum)
 	}
 	if err != nil {

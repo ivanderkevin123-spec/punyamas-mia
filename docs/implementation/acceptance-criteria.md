@@ -61,8 +61,8 @@ Legend for *Test method*: U = unit test, I = integration test (store + orchestra
 
 | ID | Criterion | Phase | Status |
 |---|---|---|---|
-| P4-1 | Briefs are Indonesian, contain `[ISI: …]` for every unconfirmed fact, pass the claim checker, list unmet M1 preconditions, and carry the DRAFT header | 4 | pending |
-| P4-2 | No brief mentions prices, addresses, hours, guarantees, reviews, market share, or statistics unless present in `B4-fakta.json` | 4 | pending |
+| P4-1 | Briefs are Indonesian, contain `[ISI: …]` for every unconfirmed fact, pass the claim checker, list unmet M1 preconditions, and carry the DRAFT header | 4 | passed for mock fixtures (see §10, P4-3 to P4-8); real-model output untested |
+| P4-2 | No brief mentions prices, addresses, hours, guarantees, reviews, market share, or statistics unless present in `B4-fakta.json` | 4 | passed for the configured patterns (see §10, P4-5); paraphrases can pass, human review mandatory |
 | P5-1 | Performance import rejects PII-like columns; KPIs are computed by code; missing data yields "tidak dapat dihitung" | 5 | pending |
 | P6-1 | `mia schedule render` output is a valid launchd plist pointing at the absolute binary; installation is manual and documented | 6 | pending |
 | P7-1 | All criteria above re-run; cost ledger for the evaluation period ≤ USD 20; limitations documented | 7 | pending |
@@ -127,3 +127,29 @@ Phase 3 did not set out to fix A8–A16 and they remain **unresolved** unless a 
 | A15 | `bin/mia` built before the first commit is not tied to a commit | unresolved (`bin/` is git-ignored; rebuild from the approved commit) |
 | A16 | informational: `ResolveUnder` rejects any relative path containing `..` as a substring | unresolved (behaviour unchanged; the same guard protects `export brief`) |
 | Coverage gaps (audit §7) | `report`, `provider/mock`, `provider/registry`, `cmd` had little or no own tests | partially reduced: `report` now has renderer tests for research and strategy, `cmd` has two CLI workflow tests; `mock` and `registry` still have no own test files |
+
+## 10. Phase 4 — Content Agent (2026-10-14; implemented, uncommitted, pending approval)
+
+All statuses below come from `GOPROXY=off GOSUMDB=off make test` and `make test-race` on 2026-10-14 (both green), `make vet` clean, `make modcheck` reporting `go.mod`/`go.sum` unchanged, and a CLI walkthrough with the built binary in isolated directories.
+
+| ID | Criterion | Evidence (tests) | Status |
+|---|---|---|---|
+| P4-3 | An approved opportunity produces drafts with full provenance (opportunity, strategy and research runs, execution, config/content/scoring/fixture hashes, content hash, version 1) | `TestContent_MockEndToEnd` (golden `testdata/golden/content-sample.md`) | passed |
+| P4-4 | Proposed, rejected, needs-more-evidence, blocked, gate-rejected, unknown opportunities and a status set without an approval record are refused with no run and no agent call; storage trigger refuses drafts for unapproved opportunities | `TestContent_IneligibleOpportunitiesRefused`, `TestContentDraftStorageRules` | passed |
+| P4-5 | Missing or unvalidated evidence, a non-completed strategy run, and approval withdrawn before resume are refused | `TestContent_InvalidProvenanceRefused` | passed |
+| P4-6 | Fictitious, unvalidated and cross-opportunity evidence refs block the draft and are never linked; composite foreign key refuses cross-opportunity links | `TestEvidenceRefsMustBelongToTheOpportunity`, `TestContent_GatesFixture`, `TestContentDraftStorageRules` | passed |
+| P4-7 | Prices, hours, addresses, statistics, customer claims, unsupported numbers, guaranteed profit, price trends, testimonials, false urgency, discounts and process-time promises are blocked; soft pressure and non-standard placeholders need review; clean Indonesian controls pass | `TestFactualAndLanguageRules`, `TestContent_GatesFixture` | passed (lexical; limits in `content-agent.md` §4) |
+| P4-8 | Placeholders are recorded from the text, listed in the checklist, and a draft with placeholders is never ready for handoff, even when approved | `TestPlaceholdersAreRecordedAndBlockReadiness`, `TestContent_MockEndToEnd`, `TestCLIContentWorkflowIsolated` | passed |
+| P4-9 | Each content type follows `content_drafts.v1` (fields, channels, rune limits, sections, variant limits); the agent cannot set status or IDs | `TestStructuralPerContentType`, `TestParseOutputIsStrict` | passed |
+| P4-10 | Duplicates within a run and against existing drafts are reported and not stored; silent regeneration is refused; exact duplicates are refused by a unique index | `TestDuplicatesWithinRunAndAgainstExistingDrafts`, `TestContent_RegenerateAndDuplicates`, `TestContentDraftStorageRules` | passed |
+| P4-11 | Reviews are append-only and versioned; a revision or out-of-band text change after approval returns the draft to review; approval needs a review record for the current version; drafts cannot be deleted | `TestContent_ReviewAppendOnlyAndRevision`, `TestContentDraftStorageRules`, `TestCLIContentWorkflowIsolated` | passed |
+| P4-12 | New drafts are never approved automatically (application and trigger) | `TestContent_MockEndToEnd`, `TestContentDraftStorageRules` | passed |
+| P4-13 | Export is labelled DRAF with review and placeholder metadata; traversal, absolute, symlink-escape and workspace targets are refused; a failed export leaves the draft and versions unchanged and no partial file | `TestCLIContentWorkflowIsolated`, `TestResolveDraftPathRefusesEscapes`, `TestWriteAtomicLeavesNoPartialFile` | passed |
+| P4-14 | Migration 0003 upgrades a Phase 3 database with data kept, foreign keys and integrity clean; draft writes roll back atomically | `TestMigrationFromPhase3DatabaseKeepsDataAndIntegrity`, `TestContentDraftStorageRules`, `TestMigrateAndIntegrity` | passed |
+| P4-15 | Call cap, timeout, budget ceiling, fatal error then resume, forced resume beyond the cap | `TestContent_CallCapTimeoutBudgetAndResume` | passed |
+| P4-16 | Content report and export escape hostile text; a body cannot imitate status, readiness, headings or provenance | `TestContentMarkdownCannotFakeStatusOrProvenance`, `TestMDBlock`, golden file | passed |
+| P4-17 | No network and no paid provider: mock only, cost USD 0, no `net`, `net/http`, `os/exec` or Anthropic imports on the content path | `TestContent_NoNetworkNoPaidProvider`, `TestNoNetworkImports` | passed |
+| P4-18 | Clean end-to-end research → strategy → opportunity approval → content draft → human review → export | `TestContent_MockEndToEnd`, `TestCLIContentWorkflowIsolated` | passed |
+| P4-19 | All earlier tests still pass; refactors (shared claim scanner, shared agent-call loop, shared evidence loader, path guard, atomic opportunity decision) keep the strategy golden identical | full `make test`, `testdata/golden/strategy-sample.md` unchanged | passed |
+
+Open items after Phase 4 (not fixed in this phase): A8–A16 as listed in §9 remain **unresolved**. New, found during Phase 4: the Phase 3 strategy report and brief templates render evidence refs as `[{{code .Ref}}]`, so brackets and parentheses from an import file name are not escaped and could form a Markdown link; the Phase 4 content templates use code spans instead. Low severity (refs come from local import file names); left unchanged to keep the Phase 3 output stable.

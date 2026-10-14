@@ -1,0 +1,87 @@
+# {{text .Title}} — {{text .BrandName}}
+
+> **DRAF — BELUM DIPUBLIKASIKAN.** MIA tidak memiliki fitur publikasi, pengiriman, atau penjadwalan. Persetujuan peninjau di MIA hanya untuk tahap berikutnya; publikasi tetap memerlukan persetujuan CEO (D-005), syarat M1 §2, dan pengisian semua [ISI: ...].
+{{if .Failed}}
+> **RUN GAGAL / TIDAK LENGKAP.** Laporan ini tidak boleh dibaca sebagai hasil konten yang selesai. Langkah yang gagal tercantum di bagian Status langkah.
+{{else if .Incomplete}}
+> **RUN BELUM LENGKAP.** Tidak semua langkah dijalankan.
+{{end}}
+| Run konten | Peluang | Run strategi | Run riset | Status | Dibuat (UTC) | Selesai (UTC) | Penyedia AI | Konfigurasi | Aturan konten | Fixture |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `{{code .RunID}}` | `{{code .OpportunityID}}` | `{{code .StrategyRunID}}` | `{{code .ResearchRunID}}` | **{{cell .StatusLabel}}** | {{cell .CreatedAt}} | {{cell .FinishedAt}} | {{cell .Provider}} | `{{code .ConfigHash}}` | `{{code .ContentConfigHash}}` | `{{code .FixtureHash}}` |
+
+Draf diusulkan model dan diperiksa kode: bukti harus milik peluang yang disetujui dan tervalidasi; harga, alamat, jam buka, statistik, testimoni, janji, diskon, tenggat, dan tren harga tanpa dukungan diblokir; informasi yang belum ada ditulis sebagai [ISI: ...]. Tidak ada draf yang disetujui otomatis. Keluaran mock tidak menguji kualitas model AI sungguhan.
+
+## 1. Peluang sumber
+{{with .Opportunity}}
+- **{{text .Title}}** `{{code .ID}}` · tingkat {{cell .Tier}} · status {{cell .StatusLabel}} · segmen {{cell .Segment}}{{if .RequiresStore}} · **memerlukan konfirmasi operasional/toko**{{end}}
+- **Kebutuhan pelanggan:** {{text .Need}}
+- **Interpretasi strategis (bukan fakta):** {{text .Interpretation}}
+{{range .Brief.Facts}}- Fakta peluang `{{code .ID}}` `{{code .Ref}}` kualitas {{.Quality}} — {{text .Statement}}
+{{end}}- **Riwayat keputusan peluang (hanya-tambah):** {{range $i, $a := .Approvals}}{{if $i}}; {{end}}{{cell $a.At}} {{cell $a.Decision}} oleh {{text $a.By}}{{if $a.Note}} ({{text $a.Note}}){{end}}{{end}}
+- **Jejak peluang:** run strategi `{{code .RunID}}` · run riset `{{code .ParentRunID}}` · aturan skor `{{code .ScoringHash}}` · fixture strategi `{{code .FixtureHash}}`
+{{else}}
+_Peluang sumber tidak dapat dimuat._
+{{end}}
+## 2. Ringkasan
+
+- Draf diusulkan agen: {{.Counts.Proposed}} · ditolak validasi struktural: {{.Counts.StructuralRejected}} · duplikat tidak disimpan: {{.Counts.DuplicatesSkipped}} · disimpan: {{.Counts.Stored}}
+- Status: perlu tinjauan {{.Counts.NeedsReview}} · lolos gerbang {{.Counts.Draft}} · disetujui {{.Counts.Approved}} · ditolak {{.Counts.Rejected}} · diblokir {{.Counts.Blocked}}
+- Isian [ISI: ...] belum diisi: {{.Counts.Placeholders}} · klaim perlu verifikasi: {{.Counts.ClaimsToVerify}} · tautan bukti: {{.Counts.EvidenceLinks}}
+- Biaya: {{.CostTotal}} (aktual {{.CostActual}}, estimasi tidak pasti {{.CostUncertain}}){{if not .CostMeasurable}} — **biaya tidak dapat diukur sepenuhnya**{{end}} · Plafon bulanan: {{.MonthlyCeiling}}
+
+## 3. Status langkah
+
+| Langkah | Status | Percobaan | Catatan |
+|---|---|---|---|
+{{range .Steps}}| {{cell .Name}} | {{cell .Status}} | {{.Attempts}} | {{cell .Error}} |
+{{end}}
+{{if .Errors}}### Kesalahan
+{{range .Errors}}- {{text .}}
+{{end}}{{end}}
+{{if .Warnings}}### Peringatan
+{{range .Warnings}}- {{text .}}
+{{end}}{{end}}
+## 4. Perlu tinjauan ({{len .NeedsReview}})
+{{if not .NeedsReview}}
+_Tidak ada._
+{{end}}{{range .NeedsReview}}{{template "draft" .}}{{end}}
+## 5. Lolos gerbang kode, menunggu tinjauan ({{len .Draft}})
+{{if not .Draft}}
+_Tidak ada._
+{{end}}{{range .Draft}}{{template "draft" .}}{{end}}
+## 6. Disetujui peninjau — bukan izin publikasi ({{len .Approved}})
+{{if not .Approved}}
+_Tidak ada._
+{{end}}{{range .Approved}}{{template "draft" .}}{{end}}
+## 7. Ditolak peninjau ({{len .Rejected}})
+{{if not .Rejected}}
+_Tidak ada._
+{{end}}{{range .Rejected}}{{template "draft" .}}{{end}}
+## 8. Diblokir gerbang kode ({{len .Blocked}})
+{{if not .Blocked}}
+_Tidak ada._
+{{end}}{{range .Blocked}}{{template "draft" .}}{{end}}
+## 9. Eksekusi agen dan biaya
+
+| Eksekusi | Agen | Penyedia | Model | Hasil | Token masuk | Token keluar | Biaya |
+|---|---|---|---|---|---|---|---|
+{{range .Execs}}| `{{code .ID}}` | {{cell .Agent}} | {{cell .Provider}} | {{cell .Model}} | {{cell .Outcome}} | {{.InputTokens}} | {{.OutputTokens}} | {{cell .Cost}} |
+{{end}}{{if not .Execs}}| — | — | — | — | tidak ada panggilan | 0 | 0 | USD 0.0000 |
+{{end}}
+## 10. Aturan yang diterapkan kode
+
+- Kelayakan: hanya peluang berstatus approved dengan riwayat persetujuan, run strategi selesai, dan bukti yang masih tervalidasi.
+- Bukti: referensi harus milik peluang ini dan tervalidasi; referensi fiktif, belum tervalidasi, atau lintas peluang memblokir draf.
+- Klaim: fakta tanpa bukti tervalidasi (A–C) atau fakta usaha yang disetujui dicatat sebagai klaim perlu verifikasi.
+- Bahasa: harga, jam buka, alamat, statistik, klaim pelanggan, angka tanpa sumber, janji keuntungan, tren harga, testimoni, urgensi palsu, diskon, dan janji waktu proses memblokir draf; ajakan mendesak dan isian tidak baku memerlukan tinjauan. Aturan ini mencocokkan kata dan pola, bukan makna.
+- Isian: setiap [ISI: ...] dicatat; draf dengan isian tidak pernah siap serah terima.
+- Duplikat: draf yang hampir sama (jenis dan kanal sama) tidak disimpan dan dilaporkan.
+- Status: draf baru tidak pernah disetujui otomatis; perubahan teks setelah tinjauan mengembalikan draf ke perlu tinjauan.
+
+## 11. Langkah berikutnya
+{{range .NextSteps}}
+- {{text .}}{{end}}
+
+---
+_Dibuat {{.Generated}} oleh MIA (mode {{cell .Provider}}). DRAF — belum dipublikasikan. Jejak: konfigurasi `{{code .ConfigHash}}`, aturan konten `{{code .ContentConfigHash}}`, fixture `{{code .FixtureHash}}`._

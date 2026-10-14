@@ -1,0 +1,321 @@
+{
+ "drafts": [
+  {
+   "content_type": "instagram_caption",
+   "variant": 1,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Memperkenalkan pembeda proses yang terlihat kepada penjual perorangan (AU1) sebelum toko beroperasi.",
+   "hook": "Ditimbang dan diuji di depan Anda.",
+   "headline": "",
+   "body": "Saat menjual perhiasan emas, Bapak atau Ibu berhak melihat prosesnya. Panduan edukasi yang kami baca menyarankan agar penimbangan dilakukan di depan penjual dan kadar yang dipakai sebagai dasar harga ditanyakan. Kami akan menimbang dan menguji barang di depan Bapak atau Ibu, dan harga akan datang dengan dasar hitungnya.",
+   "call_to_action": "Simpan unggahan ini sebagai pengingat sebelum menjual perhiasan.",
+   "supporting_evidence_refs": [
+    "artikel-edukasi-contoh.json#1"
+   ],
+   "brand_fact_ids": [
+    "FB7"
+   ],
+   "claims": [
+    {
+     "text": "Panduan edukasi menyarankan penimbangan di depan penjual.",
+     "kind": "fact",
+     "evidence_refs": [
+      "artikel-edukasi-contoh.json#1"
+     ],
+     "fact_ids": []
+    },
+    {
+     "text": "Barang ditimbang dan diuji di depan pemiliknya.",
+     "kind": "fact",
+     "evidence_refs": [],
+     "fact_ids": [
+      "FB7"
+     ]
+    }
+   ],
+   "placeholders": [],
+   "assumptions": [
+    "Calon penjual mencari informasi proses sebelum datang."
+   ],
+   "risks": [
+    "Kata 'berhak' dapat terdengar menggurui bila nadanya tidak tenang."
+   ],
+   "review_checklist": [
+    "Pastikan foto pendamping tidak menampilkan wajah atau identitas orang."
+   ]
+  },
+  {
+   "content_type": "instagram_caption",
+   "variant": 2,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Memperkenalkan pembeda proses yang terlihat kepada penjual perorangan (AU1) sebelum toko beroperasi.",
+   "hook": "Apa yang terjadi di meja penimbangan?",
+   "headline": "",
+   "body": "Di sebagian toko, penimbangan dilakukan di meja belakang dan pembeli hanya menerima angka akhir. Kami akan melakukannya di depan Anda: berat bersih, kadar, dan dasar hitung akan ditampilkan. Untuk pertanyaan sebelum toko dibuka, hubungi [ISI: kontak resmi Punyamas].",
+   "call_to_action": "Tanyakan proses penimbangan kepada kami melalui [ISI: kontak resmi Punyamas].",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [
+    {
+     "text": "Ada toko yang menimbang di meja belakang sehingga pembeli hanya menerima angka akhir.",
+     "kind": "fact",
+     "evidence_refs": [
+      "catatan-lapangan-contoh.md#2"
+     ],
+     "fact_ids": []
+    }
+   ],
+   "placeholders": [
+    "[ISI: kontak resmi Punyamas]"
+   ],
+   "assumptions": [],
+   "risks": [
+    "Pesan dapat terdengar menuduh pesaing bila tidak ditulis netral."
+   ],
+   "review_checklist": []
+  },
+  {
+   "content_type": "instagram_caption",
+   "variant": 3,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Memperkenalkan pembeda proses yang terlihat kepada penjual perorangan (AU1) sebelum toko beroperasi.",
+   "hook": "Harga datang dengan dasar hitungnya.",
+   "headline": "",
+   "body": "Banyak penjual belum terbiasa membaca dasar hitung harga. Harga beli akan dihitung dari berat bersih, kadar, dan pengurang alat, dan setiap komponennya akan ditampilkan kepada Anda. Penawaran berlaku 10 menit agar Anda punya waktu menimbang keputusan dengan tenang.",
+   "call_to_action": "Pelajari cara membaca dasar hitung sebelum menjual.",
+   "supporting_evidence_refs": [],
+   "brand_fact_ids": [
+    "FB8"
+   ],
+   "claims": [
+    {
+     "text": "Penawaran berlaku 10 menit dan dasar hitung ditampilkan.",
+     "kind": "fact",
+     "evidence_refs": [],
+     "fact_ids": [
+      "FB8"
+     ]
+    },
+    {
+     "text": "Banyak penjual belum terbiasa membaca dasar hitung harga.",
+     "kind": "fact",
+     "evidence_refs": [],
+     "fact_ids": []
+    }
+   ],
+   "placeholders": [],
+   "assumptions": [
+    "Penjelasan dasar hitung mengurangi keraguan."
+   ],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "headline_variants",
+   "variant": 1,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Menguji sudut pesan yang paling mudah dipahami AU1.",
+   "hook": "",
+   "headline": "Ditimbang dan diuji di depan Anda",
+   "body": "Sudut uji: proses yang terlihat (pilar PM1).",
+   "call_to_action": "",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "headline_variants",
+   "variant": 2,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Menguji sudut pesan yang paling mudah dipahami AU1.",
+   "hook": "",
+   "headline": "Harga jelas, dasar hitungnya Anda lihat",
+   "body": "Sudut uji: dasar hitung yang ditampilkan (pilar PM2).",
+   "call_to_action": "",
+   "supporting_evidence_refs": [
+    "artikel-edukasi-contoh.json#1"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "headline_variants",
+   "variant": 3,
+   "channel": "instagram",
+   "target_segment": "AU1",
+   "objective": "Menguji sudut pesan yang paling mudah dipahami AU1.",
+   "hook": "",
+   "headline": "Lihat sendiri proses penimbangannya",
+   "body": "Sudut uji: ajakan memeriksa proses dengan tenang (pilar PM1 dan PM4).",
+   "call_to_action": "",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [],
+   "claims": [],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "education",
+   "variant": 1,
+   "channel": "situs",
+   "target_segment": "AU1",
+   "objective": "Mengedukasi calon penjual tentang hal yang perlu diperiksa saat menjual perhiasan emas.",
+   "hook": "",
+   "headline": "Tiga hal yang perlu Anda lihat saat menjual perhiasan emas",
+   "body": "Pertama, minta penimbangan dilakukan di depan Anda. Kedua, tanyakan kadar yang dipakai sebagai dasar harga. Ketiga, minta rincian dasar hitung: berat bersih, kadar, dan pengurang. Dua langkah pertama juga disarankan oleh panduan edukasi yang kami baca. Kami berencana menjalankan ketiganya di depan setiap penjual.",
+   "call_to_action": "Bagikan panduan ini kepada keluarga yang berencana menjual perhiasan.",
+   "supporting_evidence_refs": [
+    "artikel-edukasi-contoh.json#1"
+   ],
+   "brand_fact_ids": [
+    "FB7",
+    "FB8"
+   ],
+   "claims": [
+    {
+     "text": "Panduan edukasi menyarankan penimbangan di depan penjual dan menanyakan kadar.",
+     "kind": "fact",
+     "evidence_refs": [
+      "artikel-edukasi-contoh.json#1"
+     ],
+     "fact_ids": []
+    },
+    {
+     "text": "Penjual lebih tenang bila prosesnya terlihat.",
+     "kind": "interpretation",
+     "evidence_refs": [],
+     "fact_ids": []
+    }
+   ],
+   "placeholders": [],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "short_video_script",
+   "variant": 1,
+   "channel": "instagram_reels",
+   "target_segment": "AU1",
+   "objective": "Menunjukkan perbedaan proses yang terlihat dan tidak terlihat dalam video pendek.",
+   "hook": "Pernahkah barang Anda ditimbang tanpa Anda lihat?",
+   "headline": "",
+   "body": "Pembuka: Seorang penjual menyerahkan perhiasan di meja, lalu hanya menerima angka akhir.\nIsi: Narasi: Saat menjual emas, Anda berhak melihat timbangan dan hasil uji. Kami akan menimbang dan menguji di depan Anda, lalu menjelaskan dasar hitungnya.\nPenutup: Teks di layar: Ditimbang dan diuji di depan Anda. Informasi pembukaan: [ISI: tanggal pembukaan toko].",
+   "call_to_action": "Ikuti akun ini untuk kabar pembukaan.",
+   "supporting_evidence_refs": [
+    "catatan-lapangan-contoh.md#2"
+   ],
+   "brand_fact_ids": [
+    "FB7"
+   ],
+   "claims": [
+    {
+     "text": "Ada toko yang menimbang di luar pandangan pembeli.",
+     "kind": "fact",
+     "evidence_refs": [
+      "catatan-lapangan-contoh.md#2"
+     ],
+     "fact_ids": []
+    }
+   ],
+   "placeholders": [
+    "[ISI: tanggal pembukaan toko]"
+   ],
+   "assumptions": [],
+   "risks": [
+    "Adegan tidak boleh menampilkan toko pesaing yang dapat dikenali."
+   ],
+   "review_checklist": []
+  },
+  {
+   "content_type": "whatsapp_message",
+   "variant": 1,
+   "channel": "whatsapp",
+   "target_segment": "AU1",
+   "objective": "Menyiapkan pesan kabar persiapan untuk kontak yang sudah memberi persetujuan promosi.",
+   "hook": "",
+   "headline": "",
+   "body": "Selamat siang, Bapak atau Ibu. Punyamas sedang mempersiapkan tempat pembelian emas di Surabaya. Di tempat kami nanti, barang akan ditimbang dan diuji di depan Anda, dan harga akan datang dengan dasar hitungnya. Syarat dan periode promosi: [ISI: syarat dan periode promosi]. Alamat: [ISI: alamat cabang].",
+   "call_to_action": "Balas pesan ini bila ingin menerima kabar pembukaan.",
+   "supporting_evidence_refs": [],
+   "brand_fact_ids": [
+    "FB1",
+    "FB7"
+   ],
+   "claims": [
+    {
+     "text": "Punyamas sedang mempersiapkan tempat pembelian emas di Surabaya.",
+     "kind": "fact",
+     "evidence_refs": [],
+     "fact_ids": [
+      "FB1"
+     ]
+    }
+   ],
+   "placeholders": [
+    "[ISI: syarat dan periode promosi]",
+    "[ISI: alamat cabang]"
+   ],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  },
+  {
+   "content_type": "article_faq",
+   "variant": 1,
+   "channel": "situs",
+   "target_segment": "AU1",
+   "objective": "Menjawab pertanyaan umum tentang proses penimbangan dan dasar harga.",
+   "hook": "",
+   "headline": "Tanya jawab: bagaimana penimbangan di Punyamas akan dilakukan",
+   "body": "Pertanyaan: Apakah saya boleh melihat barang saya ditimbang?\nJawaban: Ya. Kami akan menimbang dan menguji barang di depan Anda.\nPertanyaan: Bagaimana harga akan dihitung?\nJawaban: Dari berat bersih, kadar, dan pengurang alat; setiap komponennya akan ditampilkan. Harga per gram yang berlaku: [ISI: harga buyback terverifikasi].\nPertanyaan: Apakah saya boleh menolak penawaran?\nJawaban: Boleh. Barang Anda kembali utuh.",
+   "call_to_action": "Kirim pertanyaan Anda melalui [ISI: kontak resmi Punyamas].",
+   "supporting_evidence_refs": [
+    "artikel-edukasi-contoh.json#1"
+   ],
+   "brand_fact_ids": [
+    "FB7",
+    "FB8"
+   ],
+   "claims": [
+    {
+     "text": "Dasar hitung terdiri dari berat bersih, kadar, dan pengurang alat.",
+     "kind": "fact",
+     "evidence_refs": [],
+     "fact_ids": [
+      "FB8"
+     ]
+    }
+   ],
+   "placeholders": [
+    "[ISI: harga buyback terverifikasi]",
+    "[ISI: kontak resmi Punyamas]"
+   ],
+   "assumptions": [],
+   "risks": [],
+   "review_checklist": []
+  }
+ ],
+ "notes": "Keluaran mock deterministik untuk peluang transparansi_penimbangan (sample-batch)."
+}

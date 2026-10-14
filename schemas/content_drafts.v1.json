@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "content_drafts.v1",
+  "title": "Content Agent output (Phase 4)",
+  "description": "Proposed Indonesian marketing drafts for ONE approved opportunity. Identifiers, status, timestamps, hashes, the authoritative placeholder list and claims_requiring_verification are assigned by code, never by the agent. Parsed strictly: unknown fields are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["drafts"],
+  "properties": {
+    "drafts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["content_type", "variant", "channel", "target_segment", "objective", "body"],
+        "properties": {
+          "content_type": { "enum": ["instagram_caption", "headline_variants", "education", "short_video_script", "whatsapp_message", "article_faq"] },
+          "variant": { "type": "integer", "minimum": 1, "description": "1..variants configured for the type in config/content.yaml" },
+          "channel": { "type": "string", "description": "one of the channels configured for the type" },
+          "target_segment": { "enum": ["AU1", "AU2", "AU3", "AU4", "AU5"] },
+          "objective": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "hook": { "type": "string" },
+          "headline": { "type": "string" },
+          "body": { "type": "string", "minLength": 1 },
+          "call_to_action": { "type": "string" },
+          "supporting_evidence_refs": { "type": "array", "maxItems": 20, "items": { "type": "string" } },
+          "brand_fact_ids": { "type": "array", "maxItems": 14, "items": { "type": "string", "pattern": "^FB[0-9]{1,2}$" } },
+          "claims": {
+            "type": "array", "maxItems": 20,
+            "items": {
+              "type": "object", "additionalProperties": false, "required": ["text", "kind"],
+              "properties": {
+                "text": { "type": "string", "minLength": 1 },
+                "kind": { "enum": ["fact", "interpretation", "hypothesis"] },
+                "evidence_refs": { "type": "array", "items": { "type": "string" } },
+                "fact_ids": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "placeholders": { "type": "array", "maxItems": 30, "items": { "type": "string", "pattern": "^\\[ISI: [^\\]0-9]+\\]$" } },
+          "assumptions": { "type": "array", "maxItems": 15, "items": { "type": "string" } },
+          "risks": { "type": "array", "maxItems": 15, "items": { "type": "string" } },
+          "review_checklist": { "type": "array", "maxItems": 15, "items": { "type": "string" } }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "x-structural-rules": [
+    "per type (config/content.yaml): required fields, allowed channels, rune limits per field (0 = field must be empty), body sections in order",
+    "at most `variants` drafts per type, numbered 1..variants without repeats; only requested types",
+    "objective <= 300 runes; claims kind fact|interpretation|hypothesis"
+  ],
+  "x-code-gates": [
+    "every evidence ref must be linked to this opportunity (opportunity_evidence) and still validated; otherwise the draft is blocked",
+    "brand checker, factual-claim scanner (prices, hours, addresses, statistics, customer claims, unsupported numbers) and content language rules run on hook, headline, body and call_to_action after [ISI: ...] markers are removed",
+    "fact claims without validated A-C evidence or an approved business fact are recorded as claims requiring verification",
+    "near-duplicates (same type and channel, token Jaccard >= duplicate_similarity) are reported and not stored",
+    "status: blocked | needs_review | draft; never approved on creation"
+  ]
+}

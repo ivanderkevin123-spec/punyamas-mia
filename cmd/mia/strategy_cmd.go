@@ -8,11 +8,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/domain"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/orchestrator"
+	"github.com/ivanderkevin123-spec/punyamas-mia/internal/safepath"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/store"
 )
 
@@ -137,11 +137,7 @@ func cmdApproveOpportunity(ctx context.Context, args []string, stdout, stderr io
 	}
 	now := a.now().UTC().Format(time.RFC3339)
 	rec := &domain.ApprovalRecord{ID: a.ids.New("appr"), SubjectType: "opportunity", SubjectID: opp.ID, Decision: *decision, DecidedBy: *by, Note: *note, DecidedAt: now}
-	if err := a.store.InsertApproval(ctx, rec); err != nil {
-		fmt.Fprintln(stderr, "kesalahan:", err)
-		return 1
-	}
-	if err := a.store.UpdateOpportunityStatus(ctx, opp.ID, status); err != nil {
+	if err := a.store.RecordOpportunityDecision(ctx, rec, status); err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
 		return 1
 	}
@@ -201,7 +197,7 @@ func cmdExportBrief(ctx context.Context, args []string, stdout, stderr io.Writer
 		return 1
 	}
 	// Never write into the read-only Punyamas workspace: handoff is manual.
-	if under(abs, a.cfg.Sources.Workspace.Root) {
+	if safepath.Under(abs, a.cfg.Sources.Workspace.Root) {
 		fmt.Fprintf(stderr, "tujuan %s berada di dalam ruang kerja Punyamas (baca-saja); ekspor ke luar ruang kerja lalu serahkan manual\n", abs)
 		return 1
 	}
@@ -215,23 +211,4 @@ func cmdExportBrief(ctx context.Context, args []string, stdout, stderr io.Writer
 	}
 	fmt.Fprintf(stdout, "brief diekspor: %s (serah terima ke ruang kerja Punyamas dilakukan manual)\n", abs)
 	return 0
-}
-
-// under reports whether path lies inside root (symlinks resolved).
-func under(path, root string) bool {
-	if root == "" {
-		return false
-	}
-	r, err := filepath.Abs(root)
-	if err != nil {
-		return false
-	}
-	if rr, err := filepath.EvalSymlinks(r); err == nil {
-		r = rr
-	}
-	p := path
-	if pp, err := filepath.EvalSymlinks(filepath.Dir(p)); err == nil {
-		p = filepath.Join(pp, filepath.Base(p))
-	}
-	return p == r || strings.HasPrefix(p, r+string(filepath.Separator))
 }

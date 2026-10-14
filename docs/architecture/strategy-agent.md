@@ -60,7 +60,7 @@ Migration `0002_strategy.sql`: `opportunities` (status, tier, hypothesis, requir
 
 ## 7. Approval workflow
 
-Statuses: `proposed` → (`approved` | `rejected_by_review` | `needs_more_evidence`) by `mia approve opportunity`; `blocked` and `rejected` are terminal and refuse review. Every decision appends an `approval_records` row (subject `opportunity`); the opportunity's status mirrors the latest decision but the evaluation (tier, dimensions, evidence) is never modified. Reports and briefs show the full history. `mia export brief --id` renders the approved opportunity's brief (`templates/brief.md.tmpl`, DRAF header, evidence by kind, ordinal scores, dependencies, approval history, provenance) to `drafts/<id>.md` or `--out`; any path inside the Punyamas workspace root is refused. Handoff to `bots/punyamas` is manual.
+Statuses: `proposed` → (`approved` | `rejected_by_review` | `needs_more_evidence`) by `mia approve opportunity` (since Phase 4 the decision row and the status mirror are written in one transaction, `Store.RecordOpportunityDecision`, and `approval_records` is append-only at the storage layer); `blocked` and `rejected` are terminal and refuse review. Every decision appends an `approval_records` row (subject `opportunity`); the opportunity's status mirrors the latest decision but the evaluation (tier, dimensions, evidence) is never modified. Reports and briefs show the full history. `mia export brief --id` renders the approved opportunity's brief (`templates/brief.md.tmpl`, DRAF header, evidence by kind, ordinal scores, dependencies, approval history, provenance) to `drafts/<id>.md` or `--out`; any path inside the Punyamas workspace root is refused. Handoff to `bots/punyamas` is manual.
 
 ## 8. Configuration and mock execution
 

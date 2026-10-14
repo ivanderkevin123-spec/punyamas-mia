@@ -382,8 +382,16 @@ func (s *Store) CostsForRun(ctx context.Context, runID string) ([]*domain.CostRe
 // ---- approvals ----
 
 func (s *Store) InsertApproval(ctx context.Context, a *domain.ApprovalRecord) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO approval_records(id, subject_type, subject_id, decision, decided_by, note, decided_at) VALUES (?,?,?,?,?,?,?)`,
-		a.ID, a.SubjectType, a.SubjectID, a.Decision, a.DecidedBy, nz(a.Note), a.DecidedAt)
+	return insertApproval(ctx, s.db, a)
+}
+
+func insertApproval(ctx context.Context, ex execer, a *domain.ApprovalRecord) error {
+	var ver any
+	if a.SubjectVersion > 0 {
+		ver = a.SubjectVersion
+	}
+	_, err := ex.ExecContext(ctx, `INSERT INTO approval_records(id, subject_type, subject_id, decision, decided_by, note, decided_at, subject_version, subject_hash) VALUES (?,?,?,?,?,?,?,?,?)`,
+		a.ID, a.SubjectType, a.SubjectID, a.Decision, a.DecidedBy, nz(a.Note), a.DecidedAt, ver, nz(a.SubjectHash))
 	return err
 }
 
@@ -607,7 +615,7 @@ func (s *Store) LatestSuccessfulExecution(ctx context.Context, runID, agent stri
 
 // ApprovalsFor returns the append-only decision history for a subject, oldest first.
 func (s *Store) ApprovalsFor(ctx context.Context, subjectType, subjectID string) ([]*domain.ApprovalRecord, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id, subject_type, subject_id, decision, decided_by, note, decided_at FROM approval_records WHERE subject_type=? AND subject_id=? ORDER BY decided_at, id`, subjectType, subjectID)
+	rows, err := s.db.QueryContext(ctx, `SELECT id, subject_type, subject_id, decision, decided_by, note, decided_at, subject_version, subject_hash FROM approval_records WHERE subject_type=? AND subject_id=? ORDER BY decided_at, rowid`, subjectType, subjectID)
 	if err != nil {
 		return nil, err
 	}
@@ -615,11 +623,14 @@ func (s *Store) ApprovalsFor(ctx context.Context, subjectType, subjectID string)
 	var out []*domain.ApprovalRecord
 	for rows.Next() {
 		var a domain.ApprovalRecord
-		var note sql.NullString
-		if err := rows.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.Decision, &a.DecidedBy, &note, &a.DecidedAt); err != nil {
+		var note, hash sql.NullString
+		var ver sql.NullInt64
+		if err := rows.Scan(&a.ID, &a.SubjectType, &a.SubjectID, &a.Decision, &a.DecidedBy, &note, &a.DecidedAt, &ver, &hash); err != nil {
 			return nil, err
 		}
 		a.Note = str(note)
+		a.SubjectVersion = int(ver.Int64)
+		a.SubjectHash = str(hash)
 		out = append(out, &a)
 	}
 	return out, rows.Err()
