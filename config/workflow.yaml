@@ -1,0 +1,5 @@
+# Workflow orchestration limits (Phase 5). The workflow only chains existing steps; it never approves,
+# publishes, sends or schedules anything. Agent calls keep every budget and call cap of earlier phases.
+version: v1
+max_runs_per_command: 4   # research, strategy and content runs started or resumed by one `workflow run|resume` invocation
+lease_seconds: 900        # how long one process may hold a workflow before another `workflow resume` can take over

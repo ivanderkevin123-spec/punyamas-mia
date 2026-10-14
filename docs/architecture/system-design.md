@@ -1,5 +1,7 @@
 # MIA — System Design
 
+> **Phase 5 update (2026-10-14):** workflow orchestration over the existing steps (status precedence, gates A–E, reservation-based idempotency, lease, resume) is specified in `workflow.md`.
+
 > **Phase 4 update (2026-10-14):** the Content Agent workflow (steps `load_opportunity → content_agent → evaluate_content → report`, gates, review state machine, export) is specified in `content-agent.md`.
 
 > **Phase 3 update (2026-10-13):** the Strategy Agent workflow (steps `load_evidence → conflicts → strategy_agent → evaluate → report`, gates, scoring, approvals) is specified in `strategy-agent.md`; this document keeps the Phase 1 design.

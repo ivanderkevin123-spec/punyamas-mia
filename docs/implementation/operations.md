@@ -1,4 +1,4 @@
-# MIA — Operations Guide (Phase 4)
+# MIA — Operations Guide (Phase 5)
 
 English for engineers; command output and report labels are Indonesian.
 
@@ -86,6 +86,7 @@ Files in `config/` (validated strictly at start; unknown keys are errors; secret
 | `marketing-policy.yaml` | nine banned-claim categories ported from `brand-oracle.mjs` |
 | `business.yaml` | facts FB1–FB14 from `B4-fakta.json`, mandatory fill-ins |
 | `brand.yaml` | positioning, pillars, tone, audiences, key messages, tagline candidates from B1 |
+| `workflow.yaml` | Phase 5 orchestration limits: `max_runs_per_command` (runs started or resumed by one `workflow run|resume`), `lease_seconds` (lease lifetime before another `resume` may take over); hashed with the rest of the configuration |
 | `content.yaml` | Phase 4 Content Agent rules applied by code: call cap per run, duplicate threshold, default content types, per-type channels/variants/required fields/rune limits/sections/checklist, marketing-language rules (`block` or `review`), base review checklist; hashed on every content draft (`content_config_hash`) |
 | `scoring.yaml` | Phase 3 Strategy Agent rules applied by code: tier thresholds, duplicate thresholds, conflict heuristic (negation pattern + minimum similarity), unsupported-claim patterns, store-dependency terms, KPI/segment/pillar/effort enumerations; hashed into every strategy run and opportunity (`scoring_config_hash`) |
 
@@ -129,6 +130,40 @@ Content commands (Phase 4; every draft is a DRAF and nothing is published, sent 
 
 Steps of a content run: `load_opportunity → content_agent → evaluate_content → report`. Only opportunities whose status is `approved` with a matching latest approval record, a completed strategy run and still-validated evidence are eligible; refusals create no run and make no agent call. A second generation for an opportunity with drafts needs `--regenerate`. The Content Agent is called at most `max_calls_per_run` (2) times per run. `review approved` means approved for the next manual stage, never a publication permission; `revise` appends a version and returns the draft to `needs_review`. See `docs/architecture/content-agent.md`.
 
+Workflow commands (Phase 5; the workflow chains the steps above, never approves, publishes, sends or schedules anything):
+
+```bash
+./bin/mia workflow start --inputs DIR [--fixture KEY] [--new]   # validates inputs first; one open workflow per inputs dir unless --new
+./bin/mia workflow run --id WF          # next safe automatic stages (research, strategy, content for approved opportunities)
+./bin/mia workflow resume --id WF [--new-content-run OPP_ID]   # re-reads the database, resumes failed/interrupted runs, takes over expired leases
+./bin/mia workflow show --id WF         # live status, stages, run IDs, counts, blockers, next actions
+./bin/mia workflow next --id WF         # concrete next commands only
+./bin/mia workflow list                 # all workflows with live status
+./bin/mia workflow report --id WF       # reports/<wf>/workflow.md|html rendered from the database
+./bin/mia workflow export --id WF [--dir RELATIVE_NAME]   # handoff-ready drafts only, to drafts/content/<wf>/
+```
+
+Exit codes: 0 ok (including "waiting for a human decision") · 1 error or refusal · 2 workflow `failed` or `blocked`, or nothing ready to export. Opportunity and draft decisions keep using `approve opportunity`, `content review` and `content revise`. Every ID argument is validated (`<prefix>_<lowercase alphanumerics>`). See `docs/architecture/workflow.md`.
+
+Reproducible terminal example (fixtures only, isolated directories, the real workspace untouched):
+
+```bash
+make build
+export MIA_DATA_DIR=$TMPDIR/demo/data MIA_REPORTS_DIR=$TMPDIR/demo/reports MIA_DRAFTS_DIR=$TMPDIR/demo/drafts MIA_WORKSPACE_ROOT=$PWD/testdata/workspace-mini
+./bin/mia workflow start --inputs testdata/sample-batch          # → Workflow wf_… dibuat (status created)
+./bin/mia workflow run --id wf_…                                 # research + strategy → awaiting_opportunity_review (4 proposals)
+./bin/mia workflow run --id wf_…                                 # "Tidak ada tahap otomatis yang aman" — nothing is created twice
+./bin/mia workflow next --id wf_…                                # lists `mia approve opportunity --id opp_… --decision …` per proposal
+./bin/mia approve opportunity --id opp_… --decision approved --note "Siap dibuatkan konten"   # the "Tunjukkan penimbangan…" proposal
+./bin/mia approve opportunity --id opp_… --decision rejected --note "Tidak sekarang"          # each of the others
+./bin/mia workflow resume --id wf_…                              # content drafts for the approved opportunity → awaiting_content_review
+./bin/mia content list --opportunity opp_…                       # review: approve the five `draft` ones, reject the others
+./bin/mia content review --id draft_… --decision approved --note "siap"
+./bin/mia workflow show --id wf_…                                # completed — 5 drafts ready for handoff
+./bin/mia workflow export --id wf_…                              # drafts/content/wf_…/draft_….md, labelled DRAF
+./bin/mia workflow report --id wf_…                              # reports/wf_…/workflow.md|html
+```
+
 Local mock walkthrough:
 
 ```bash
@@ -170,6 +205,7 @@ Rules: facts need an excerpt; dates are `YYYY-MM-DD` or RFC 3339; files containi
 - `data/mia.sqlite` (0600, WAL), `data/executions/*.request|response.txt` (0600, full prompts and raw outputs), `data/logs/mia-YYYY-MM-DD.jsonl` (redacted).
 - Cost ledger semantics (A7): a row per provider call. `estimated = 0` with `unit_price_source = provider_reported` or `price_table:<date>` is actual spend; `estimated = 1` with `uncertain:timeout` or `uncertain:error` is the pre-call estimate booked for a call whose outcome is unknown (never an actual charge); `unmeasurable:estimate` is an estimate for a provider that reports no usage. Ceilings count all rows, so repeated failures cannot bypass them. At most one row exists per execution: a later reconciliation replaces the uncertain row. Reports show total, actual and uncertain figures separately. Authentication and billing rejections book nothing.
 - Phase 3 tables: `opportunities` (evaluation, tier, brief JSON, config/scoring/fixture hashes, execution id) and `opportunity_evidence` (opportunity → validated item, role). Review decisions go to `approval_records` (append-only; the opportunity's `status` mirrors the latest decision, the evaluation is never edited).
+- Phase 5 tables: `workflows` (status summary, run links reserved before runs start, lease), `workflow_content_runs` (content run per approved opportunity and attempt, `workflow` or `adopted`), `workflow_events` (append-only audit trail: created, reserved, stage started/completed/failed, resume, adopted, budget stop, limit reached, export, status changed). Workflows and their links cannot be deleted; run links cannot change once set.
 - Phase 4 tables: `content_drafts` (current text, status, version, content hash, provenance hashes), `content_draft_versions` (every text version, append-only), `content_draft_evidence` (composite foreign keys: only the opportunity's own evidence). Content reviews are `approval_records` rows with `subject_type = content_draft`, `subject_version` and `subject_hash`; since migration 0003 every `approval_records` row is append-only (update/delete abort). `drafts/content/` holds exports for manual handoff.
 - Backup: copy `data/mia.sqlite` while no run is active (a `mia backup` command is planned for Phase 7).
 - `reports/` and `drafts/` are plain files; both are git-ignored. `drafts/<opportunity-id>.md` is the exported brief for manual handoff to `bots/punyamas` (MIA never writes there).
@@ -189,6 +225,13 @@ Rules: facts need an excerpt; dates are `YYYY-MM-DD` or RFC 3339; files containi
 | strategy run `failed` at `load_evidence` with "berstatus ..." | the research run is not completed or has no validated items | finish the research run (`--resume`), then `run strategy --from-run` again |
 | `batas 2 panggilan Agen Strategi per run sudah tercapai` | both calls of this run were spent (errors and timeouts count) | fix the cause, then start a new run with `run strategy --from-run RUN_ID` |
 | `export brief` exits 2 with "hanya peluang berstatus approved" | the opportunity is not approved (or a later decision changed it) | record `--decision approved` first; blocked/rejected opportunities can never be approved |
+| `workflow start` refused: "input riset tidak valid" | a file failed validation or the directory has no valid notes | `mia validate --inputs DIR`, fix, start again (nothing was created) |
+| `workflow start` refused: "workflow terbuka untuk input ini sudah ada" | an earlier workflow for the same inputs is not completed | continue it with `workflow run --id`, or start deliberately with `--new` |
+| `workflow run`: "sedang dimajukan oleh proses lain" | another process holds the lease | wait; after `lease_seconds` a `workflow resume` takes over a crashed process's lease |
+| workflow `failed` | a research, strategy or content run failed or was interrupted | `mia workflow show` names the run and the error; `mia workflow resume --id WF` continues the same run (no duplicate run) |
+| workflow `failed` with "mencapai batas panggilan" | a content run used its call cap without finishing its agent step | not retried automatically; `mia workflow resume --id WF --new-content-run OPP_ID` starts a deliberate new attempt |
+| workflow `blocked` mentioning "anggaran" or "plafon bulanan" | the budget gate stopped a run, or the monthly ceiling is used up (no run started) | wait for the next period or raise the ceiling deliberately, then `workflow resume` |
+| workflow `blocked`: "tidak ada peluang yang layak" | strategy produced no reviewable opportunity | add evidence and `workflow start --inputs DIR --new` |
 | `run content` refused: "tidak memenuhi syarat untuk Agen Konten" | the opportunity is not approved, its history disagrees, its strategy run is not completed, or an evidence item is no longer validated | the message lists each reason; approve the opportunity or fix the evidence, then run again |
 | `run content` refused: "draf sudah ada untuk peluang ini" | drafts already exist for the opportunity | review the existing drafts, or add `--regenerate` deliberately |
 | `content review` refused: "diblokir gerbang kode" | a hard gate failed | `content revise` the text (gates run again) or regenerate |

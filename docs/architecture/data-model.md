@@ -1,5 +1,7 @@
 # MIA — Data Model
 
+> **Phase 5 update (2026-10-14):** migration `0004_workflow.sql` adds `workflows`, `workflow_content_runs` and `workflow_events` (append-only); run links are reserved before runs start and are immutable. Details in `workflow.md` §7.
+
 > **Phase 4 update (2026-10-14):** migration `0003_content.sql` adds `content_drafts`, `content_draft_versions` and `content_draft_evidence`, adds `subject_version`/`subject_hash` to `approval_records` and makes it append-only; content runs are `research_runs` rows of kind `content`. The planned `campaign_briefs` entity (§4) was replaced by these tables. Field-level description in `content-agent.md` §6.
 
 > **Phase 3 update (2026-10-13):** migration `0002_strategy.sql` adds `opportunities` and `opportunity_evidence`; `research_runs` rows of kind `strategy` carry `parent_run_id`; approval records now also cover subject type `opportunity`. Field-level description in `strategy-agent.md` §6.

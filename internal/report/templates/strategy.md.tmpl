@@ -6,16 +6,16 @@
 - **Kebutuhan pelanggan:** {{text .Need}}
 - **Interpretasi strategis (bukan fakta):** {{text .Interpretation}}
 - **Fakta pendukung (ID bukti):**{{if not .Brief.Facts}} tidak ada{{end}}
-{{range .Brief.Facts}}  - `{{code .ID}}` [{{code .Ref}}] kualitas {{.Quality}} — {{text .Statement}} (sumber: {{text .SourceName}})
+{{range .Brief.Facts}}  - `{{code .ID}}` `{{code .Ref}}` kualitas {{.Quality}} — {{text .Statement}} (sumber: {{text .SourceName}})
 {{end}}{{if .Brief.Interpretations}}- **Interpretasi riset yang dikutip:**
-{{range .Brief.Interpretations}}  - `{{code .ID}}` [{{code .Ref}}] — {{text .Statement}}
+{{range .Brief.Interpretations}}  - `{{code .ID}}` `{{code .Ref}}` — {{text .Statement}}
 {{end}}{{end}}{{if .Brief.Hypotheses}}- **Hipotesis yang dikutip:**
-{{range .Brief.Hypotheses}}  - `{{code .ID}}` [{{code .Ref}}] — {{text .Statement}}
+{{range .Brief.Hypotheses}}  - `{{code .ID}}` `{{code .Ref}}` — {{text .Statement}}
 {{end}}{{end}}- **Penilaian:** {{range $i, $d := .Dims}}{{if $i}} · {{end}}{{text $d.Label}} {{$d.Value}} ({{cell $d.Source}}){{end}}
 {{range .Caps}}- **Batas tingkat:** {{text .Gate}} — {{text .Reason}}
 {{end}}{{range .Gates}}{{if .Details}}- Gerbang {{cell .Gate}}{{if .Passed}} (lolos){{else}} (catatan){{end}}: {{range $i, $x := .Details}}{{if $i}}; {{end}}{{text $x}}{{end}}
 {{end}}{{end}}{{range .Conflicts}}- **Konflik bukti `{{code .Group}}` — kedua sisi:**
-{{range .Sides}}  - {{if .Cited}}(dikutip) {{end}}`{{code .ID}}` [{{code .Ref}}] {{text .Statement}} — {{text .SourceName}}
+{{range .Sides}}  - {{if .Cited}}(dikutip) {{end}}`{{code .ID}}` `{{code .Ref}}` {{text .Statement}} — {{text .SourceName}}
 {{end}}{{end}}- **Pesan (bahasa niat):** {{text .Brief.Message}}
 - **Konsep penawaran:** {{text .Brief.OfferConcept}} · **Kanal:** {{text .Brief.Channel}}
 - **Uji:** {{text .Brief.TestDesign}} · **Metrik:** {{cell .Brief.SuccessMetric}} · **Kriteria:** {{text .Brief.SuccessCriteria}}

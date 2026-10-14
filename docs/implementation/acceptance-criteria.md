@@ -63,7 +63,7 @@ Legend for *Test method*: U = unit test, I = integration test (store + orchestra
 |---|---|---|---|
 | P4-1 | Briefs are Indonesian, contain `[ISI: …]` for every unconfirmed fact, pass the claim checker, list unmet M1 preconditions, and carry the DRAFT header | 4 | passed for mock fixtures (see §10, P4-3 to P4-8); real-model output untested |
 | P4-2 | No brief mentions prices, addresses, hours, guarantees, reviews, market share, or statistics unless present in `B4-fakta.json` | 4 | passed for the configured patterns (see §10, P4-5); paraphrases can pass, human review mandatory |
-| P5-1 | Performance import rejects PII-like columns; KPIs are computed by code; missing data yields "tidak dapat dihitung" | 5 | pending |
+| P5-1 | Performance import rejects PII-like columns; KPIs are computed by code; missing data yields "tidak dapat dihitung" | deferred (performance analysis moved out of Phase 5) | pending |
 | P6-1 | `mia schedule render` output is a valid launchd plist pointing at the absolute binary; installation is manual and documented | 6 | pending |
 | P7-1 | All criteria above re-run; cost ledger for the evaluation period ≤ USD 20; limitations documented | 7 | pending |
 
@@ -153,3 +153,39 @@ All statuses below come from `GOPROXY=off GOSUMDB=off make test` and `make test-
 | P4-19 | All earlier tests still pass; refactors (shared claim scanner, shared agent-call loop, shared evidence loader, path guard, atomic opportunity decision) keep the strategy golden identical | full `make test`, `testdata/golden/strategy-sample.md` unchanged | passed |
 
 Open items after Phase 4 (not fixed in this phase): A8–A16 as listed in §9 remain **unresolved**. New, found during Phase 4: the Phase 3 strategy report and brief templates render evidence refs as `[{{code .Ref}}]`, so brackets and parentheses from an import file name are not escaped and could form a Markdown link; the Phase 4 content templates use code spans instead. Low severity (refs come from local import file names); left unchanged to keep the Phase 3 output stable.
+
+## 11. Phase 5 — Workflow orchestration and quality gate (2026-10-14; implemented, uncommitted, pending approval)
+
+Evidence: `GOPROXY=off GOSUMDB=off make test` and `make test-race` green on 2026-10-14 (including the concurrency test under the race detector), `make vet` clean, `make modcheck` unchanged, a real v0.4.0 database upgraded with the new binary (migration 0004 applied, 19 drafts and 2 approvals kept, `integrity_check` ok, `foreign_key_check` empty), and a CLI walkthrough with the binary.
+
+| ID | Criterion | Evidence (tests) | Status |
+|---|---|---|---|
+| W-1 | Clean workflow from research to strategy; repeated `run` creates nothing and approves nothing | `TestWorkflow_CleanResearchToStrategyAndIdempotentRun`, `TestCLIWorkflowEndToEnd` | passed |
+| W-2 | Unapproved or rejected opportunities stop the workflow before content; approved ones proceed | `TestWorkflow_ApprovalAndReviewGates` | passed |
+| W-3 | Unreviewed drafts block handoff; drafts with placeholders are never ready; rejected drafts are neither ready nor exported | `TestWorkflow_ApprovalAndReviewGates`, `TestCLIWorkflowEndToEnd` | passed |
+| W-4 | No valid opportunity is reported honestly (`blocked`, reason, next action) | `TestWorkflow_NoValidOpportunity` | passed |
+| W-5 | Failed research blocks strategy; `run` never retries; `resume` after a restart continues the same run; stale report files are ignored | `TestWorkflow_FailedResearchAndRestartResume` | passed |
+| W-6 | Incomplete or failed strategy cannot pass gate B | `TestWorkflow_IncompleteStrategyBlocksGateB` | passed |
+| W-7 | Failed content run recovered without duplicate drafts or extra calls; explicit new attempt after the call cap | `TestWorkflow_ContentFailureRecovery`, `TestWorkflow_TimeoutAndExplicitNewContentRun` | passed |
+| W-8 | A failed transition transaction leaves no reserved run and no false progress | `TestWorkflow_TransactionFailureLeavesNoFalseProgress` | passed |
+| W-9 | Concurrent advances: one lease holder, no duplicate runs, lease released, expired lease taken over | `TestWorkflow_ConcurrentAdvanceKeepsIntegrity` | passed |
+| W-10 | Approval changes and draft revisions are reflected after the report is regenerated; counts equal stored data | `TestWorkflow_ApprovalAndReviewGates`, `TestContent_ReportCountsReflectReviewsAfterRun` | passed |
+| W-11 | Budget: per-call gate stops before any agent call; monthly precheck starts no run; the ledger is never reset | `TestWorkflow_BudgetStops`, `TestWorkflow_TimeoutAndExplicitNewContentRun` | passed |
+| W-12 | Timeouts and errors are recorded as executions, uncertain costs and workflow events | `TestWorkflow_TimeoutAndExplicitNewContentRun` | passed |
+| W-13 | Export: ready drafts only, DRAF label and provenance kept, traversal/absolute/workspace targets refused | `TestCLIWorkflowEndToEnd`, `TestResolveDraftPathRefusesEscapes` | passed |
+| W-14 | Workflow report and evidence refs are escaped against injection (titles, refs, paths, notes, agent text) | `TestWorkflowReportEscapesUntrustedValues`, `TestEvidenceRefsAreEscapedInResearchStrategyAndBrief` | passed |
+| W-15 | Provenance and evidence IDs traceable from workflow to stored links | `TestWorkflow_ApprovalAndReviewGates` | passed |
+| W-16 | No network or paid provider on the workflow path | `TestNoNetworkImports` (now covers `internal/workflow`, `internal/store`), mock-only executions | passed |
+| W-17 | Migration from a Phase 4 database keeps data and integrity; workflow tables are append-only/immutable | `TestMigrationFromPhase4DatabaseKeepsDataAndIntegrity`, `TestWorkflow_StartValidation` | passed |
+| W-18 | Invalid inputs leave no workflow; invalid IDs refused before lookup | `TestWorkflow_StartValidation`, `TestCLIWorkflowEndToEnd` | passed |
+| W-19 | Earlier phases still pass; Phase 4 content golden unchanged; research and strategy goldens changed only by the ref-escaping fix (16 and 7 lines, verified line by line) | full `make test` | passed |
+
+Audit findings after Phase 5:
+
+| Finding | Status |
+|---|---|
+| Unescaped evidence refs in Markdown reports (found in Phase 4 for strategy/brief; also present in the research report) | **fixed** in Phase 5: refs rendered as code spans in `research.md.tmpl`, `strategy.md.tmpl`, `brief.md.tmpl`; regression `TestEvidenceRefsAreEscapedInResearchStrategyAndBrief`; goldens `research-sample.md` (16 lines) and `strategy-sample.md` (7 lines) regenerated, change limited to `[ref]` → `` `ref` `` |
+| Stale content-report counts after reviews (found in Phase 5) | **fixed**: counts derived from stored drafts; regression `TestContent_ReportCountsReflectReviewsAfterRun`; content golden unchanged |
+| A12 | **partially fixed**: every CLI ID argument is validated (`ids.Valid`) before lookup or path use; the `.env` permission check remains open |
+| A8, A9, A10, A11, A13, A15, A16 | **unresolved**, unchanged by Phase 5 (risks and recommendations as in §9); the workflow keeps every existing budget, timeout and call-cap rule, so A8 (mock price 0) and A9 (timeout retries) still apply to each run it starts |
+| A14 | tests assert clean `completed` research, strategy and workflow statuses; formal closure left to the next audit |

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laporan Workflow MIA — {{.A.Workflow.ID}}</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#1B2F4A;line-height:1.5}
+h1{border-bottom:3px solid #B59864;padding-bottom:.3rem}
+table{border-collapse:collapse;width:100%;margin:.5rem 0;font-size:.9rem} th,td{border:1px solid #d9d4c7;padding:.35rem .5rem;text-align:left;vertical-align:top} th{background:#f5f1e8}
+code{background:#f5f1e8;padding:.05rem .3rem;border-radius:3px;word-break:break-all}
+.draft{background:#1B2F4A;color:#fff;padding:.75rem;font-weight:bold}
+.warn{background:#fff6dd;border-left:4px solid #B59864;padding:.5rem .75rem;margin:.4rem 0}
+.muted{color:#666;font-size:.9rem}
+</style>
+</head>
+<body>
+<h1>Laporan Workflow MIA — {{.BrandName}}</h1>
+<div class="draft">DRAF — BELUM DIPUBLIKASIKAN. Dirender dari basis data pada {{.Generated}}. MIA tidak menyetujui, menerbitkan, mengirim, atau menjadwalkan apa pun secara otomatis.</div>
+<table><tr><th>Workflow</th><th>Status</th><th>Alasan</th><th>Dibuat</th><th>Diperbarui</th><th>Tahap terakhir selesai</th><th>Tahap gagal</th><th>Keputusan manusia</th></tr>
+<tr><td><code>{{.A.Workflow.ID}}</code></td><td><strong>{{.StatusLabel}}</strong> (<code>{{.A.Status}}</code>)</td><td>{{.A.Reason}}</td><td>{{.A.Workflow.CreatedAt}}</td><td>{{.A.Workflow.UpdatedAt}}</td><td>{{if .A.LastCompletedStage}}{{stage .A.LastCompletedStage}}{{else}}belum ada{{end}}</td><td>{{if .A.FailedStage}}{{stage .A.FailedStage}}{{else}}tidak ada{{end}}</td><td>{{if .A.HumanDecisionNeeded}}YA{{else}}tidak{{end}}</td></tr></table>
+<h2>1. Tahap</h2>
+<table><tr><th>Tahap</th><th>Status</th><th>Run</th><th>Keterangan</th></tr>{{range .A.Stages}}<tr><td>{{.Label}}</td><td>{{.Status}}</td><td>{{range .RunIDs}}<code>{{.}}</code> {{end}}</td><td>{{.Detail}}{{range .Reasons}}<div class="warn">{{.}}</div>{{end}}</td></tr>{{end}}</table>
+<h2>2. Bukti riset tervalidasi</h2>
+<p>Run riset: {{with .A.Research}}<code>{{.ID}}</code> ({{.Status}}){{else}}belum dibuat{{end}} · input <code>{{.A.Workflow.InputsDir}}</code> · butir tervalidasi {{n .A.Counts.ValidatedEvidence}} (fakta {{n .A.Counts.Facts}}, interpretasi {{n .A.Counts.Interpretations}}, hipotesis {{n .A.Counts.Hypotheses}}) · sumber {{n .A.Counts.Sources}}</p>
+<h2>3. Peluang</h2>
+<p>Run strategi: {{with .A.Strategy}}<code>{{.ID}}</code> ({{.Status}}){{else}}belum dibuat{{end}} · jumlah {{n .A.Counts.OpportunityTotal}}{{range .OppStatuses}} · {{.Key}} {{.Value}}{{end}}</p>
+<table><tr><th>Peluang</th><th>Judul</th><th>Tingkat</th><th>Status</th><th>Keputusan terakhir</th><th>Bukti</th><th>Run konten</th><th>Status draf</th></tr>{{range .A.Opportunities}}<tr><td><code>{{.ID}}</code></td><td>{{.Title}}</td><td>{{.Tier}}</td><td>{{.Status}}</td><td>{{.LatestDecision}}</td><td>{{range .EvidenceIDs}}<code>{{.}}</code> {{end}}</td><td>{{if .ContentRunID}}<code>{{.ContentRunID}}</code>{{end}}</td><td>{{.ContentStatus}}{{range .IneligibleReasons}} — {{.}}{{end}}</td></tr>{{end}}</table>
+<h2>4. Draf konten</h2>
+<p>Jumlah {{n .A.Counts.DraftTotal}}{{range .DraftStatuses}} · {{.Key}} {{.Value}}{{end}} · siap serah terima {{n .A.Counts.DraftsReady}} · diekspor {{n .A.Counts.DraftsExported}} · isian belum diisi {{n .A.Counts.Placeholders}} · klaim perlu verifikasi {{n .A.Counts.ClaimsToVerify}}</p>
+<table><tr><th>Draf</th><th>Peluang</th><th>Jenis</th><th>Versi</th><th>Status</th><th>Siap</th><th>Isian</th><th>Klaim</th><th>Bukti</th><th>Diekspor</th></tr>{{range .A.Drafts}}<tr><td><code>{{.ID}}</code></td><td><code>{{.OpportunityID}}</code></td><td>{{.ContentType}} v{{.Variant}}</td><td>{{.Version}}</td><td>{{.Status}}{{range .BlockingCategories}} {{.}}{{end}}</td><td>{{if .Ready}}YA{{else}}tidak{{end}}</td><td>{{range .Placeholders}}<code>{{.}}</code> {{end}}</td><td>{{range .ClaimsToVerify}}{{.}}; {{end}}</td><td>{{range .EvidenceIDs}}<code>{{.}}</code> {{end}}</td><td>{{if .Exported}}ya{{else}}belum{{end}}</td></tr>{{end}}</table>
+<h2>5. Blokir dan kegagalan</h2>{{range .A.Blockers}}<div class="warn">{{.}}</div>{{else}}<p class="muted">Tidak ada.</p>{{end}}
+<h2>6. Tindakan berikutnya (rekomendasi, belum dilakukan)</h2>
+<ul>{{range .HumanActions}}<li><strong>Keputusan manusia:</strong> {{.Text}}{{if .Command}} — <code>{{.Command}}</code>{{end}}</li>{{end}}{{range .AutomaticSteps}}<li>{{.Text}}{{if .Command}} — <code>{{.Command}}</code>{{end}}</li>{{end}}{{range .Notes}}<li class="muted">Catatan: {{.Text}}</li>{{end}}</ul>
+<h2>7. Biaya (dari ledger)</h2><p>Total {{usd .A.Counts.CostUSD}} · estimasi tidak pasti {{usd .A.Counts.CostUncertainUSD}}</p>
+<h2>8. Provenance</h2>
+<p class="muted">Konfigurasi workflow <code>{{.A.Provenance.WorkflowConfigHash}}</code> · saat ini <code>{{.A.Provenance.CurrentConfigHash}}</code> · riset <code>{{.A.Provenance.ResearchConfigHash}}</code> · strategi <code>{{.A.Provenance.StrategyConfigHash}}</code> · aturan skor <code>{{.A.Provenance.ScoringConfigHash}}</code> · fixture strategi <code>{{.A.Provenance.StrategyFixture}}</code></p>
+<ul>{{range .A.ContentRuns}}<li>Run konten <code>{{.RunID}}</code> (peluang <code>{{.OpportunityID}}</code>, percobaan {{.Attempt}}, {{.Origin}}, {{.Status}}, draf {{.Drafts}}) · aturan konten <code>{{.ContentConfigHash}}</code> · fixture <code>{{.FixtureHash}}</code></li>{{end}}</ul>
+<h2>9. Riwayat workflow (hanya-tambah)</h2>
+<table><tr><th>#</th><th>Waktu</th><th>Jenis</th><th>Tahap</th><th>Ref</th><th>Keterangan</th></tr>{{range .A.Events}}<tr><td>{{.Seq}}</td><td>{{.CreatedAt}}</td><td>{{.Kind}}</td><td>{{.Stage}}</td><td><code>{{.RefID}}</code></td><td>{{.Detail}}</td></tr>{{end}}</table>
+</body>
+</html>

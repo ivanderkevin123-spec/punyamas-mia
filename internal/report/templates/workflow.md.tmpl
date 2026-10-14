@@ -1,0 +1,75 @@
+# Laporan Workflow MIA — {{text .BrandName}}
+
+> **DRAF — BELUM DIPUBLIKASIKAN.** Laporan ini dirender dari basis data pada {{cell .Generated}}. Status workflow adalah ringkasan orkestrasi; status run, peluang, dan draf di basis data tetap otoritatif. MIA tidak menyetujui, menerbitkan, mengirim, atau menjadwalkan apa pun secara otomatis.
+
+| Workflow | Status | Alasan | Dibuat (UTC) | Diperbarui (UTC) | Tahap terakhir selesai | Tahap gagal | Keputusan manusia diperlukan |
+|---|---|---|---|---|---|---|---|
+| `{{code .A.Workflow.ID}}` | **{{cell .StatusLabel}}** (`{{code .A.Status}}`) | {{cell .A.Reason}} | {{cell .A.Workflow.CreatedAt}} | {{cell .A.Workflow.UpdatedAt}} | {{if .A.LastCompletedStage}}{{cell (stage .A.LastCompletedStage)}}{{else}}belum ada{{end}} | {{if .A.FailedStage}}{{cell (stage .A.FailedStage)}}{{else}}tidak ada{{end}} | {{if .A.HumanDecisionNeeded}}YA{{else}}tidak{{end}} |
+{{if .A.LeaseHeld}}
+> Workflow sedang dimajukan oleh proses lain (lease sampai {{cell .A.Workflow.LeaseExpiresAt}}).
+{{end}}
+## 1. Tahap
+
+| Tahap | Status | Run | Keterangan |
+|---|---|---|---|
+{{range .A.Stages}}| {{cell .Label}} | {{cell .Status}} | {{range $i, $r := .RunIDs}}{{if $i}}, {{end}}`{{code $r}}`{{end}} | {{cell .Detail}}{{range .Reasons}} — {{cell .}}{{end}} |
+{{end}}
+## 2. Bukti riset tervalidasi
+
+- Run riset: {{with .A.Research}}`{{code .ID}}` (status {{cell .Status}}){{else}}belum dibuat{{end}} · input `{{code .A.Workflow.InputsDir}}` · kunci fixture `{{code .A.Workflow.FixtureKey}}`
+- Butir tervalidasi: {{n .A.Counts.ValidatedEvidence}} (fakta {{n .A.Counts.Facts}}, interpretasi {{n .A.Counts.Interpretations}}, hipotesis {{n .A.Counts.Hypotheses}}) · sumber {{n .A.Counts.Sources}}
+
+## 3. Peluang
+
+- Run strategi: {{with .A.Strategy}}`{{code .ID}}` (status {{cell .Status}}){{else}}belum dibuat{{end}} · jumlah peluang: {{n .A.Counts.OpportunityTotal}}{{range .OppStatuses}} · {{cell .Key}} {{.Value}}{{end}}
+{{if .A.Opportunities}}
+| Peluang | Judul | Tingkat | Status | Keputusan terakhir | Bukti (ID butir) | Run konten | Status draf |
+|---|---|---|---|---|---|---|---|
+{{range .A.Opportunities}}| `{{code .ID}}` | {{cell .Title}} | {{cell .Tier}} | {{cell .Status}} | {{if .LatestDecision}}{{cell .LatestDecision}}{{else}}belum ada{{end}} | {{range $i, $e := .EvidenceIDs}}{{if $i}}, {{end}}`{{code $e}}`{{end}} | {{if .ContentRunID}}`{{code .ContentRunID}}` (percobaan {{.ContentAttempt}}, {{cell .ContentOrigin}}){{else}}—{{end}} | {{if .ContentStatus}}{{cell .ContentStatus}}{{else}}—{{end}}{{range .IneligibleReasons}} — {{cell .}}{{end}} |
+{{end}}{{end}}
+## 4. Draf konten
+
+- Jumlah draf: {{n .A.Counts.DraftTotal}}{{range .DraftStatuses}} · {{cell .Key}} {{.Value}}{{end}}
+- Siap serah terima: {{n .A.Counts.DraftsReady}} · sudah diekspor: {{n .A.Counts.DraftsExported}} · isian [ISI: ...] belum diisi: {{n .A.Counts.Placeholders}} · klaim perlu verifikasi: {{n .A.Counts.ClaimsToVerify}}
+{{if .A.Drafts}}
+| Draf | Peluang | Jenis | Varian | Versi | Status | Siap | Isian belum diisi | Klaim perlu verifikasi | Bukti (ID butir) | Diekspor |
+|---|---|---|---|---|---|---|---|---|---|---|
+{{range .A.Drafts}}| `{{code .ID}}` | `{{code .OpportunityID}}` | {{cell .ContentType}} | {{.Variant}} | {{.Version}} | {{cell .Status}}{{range .BlockingCategories}} {{cell .}}{{end}} | {{if .Ready}}YA{{else}}tidak{{end}} | {{range $i, $p := .Placeholders}}{{if $i}}, {{end}}`{{code $p}}`{{end}} | {{range $i, $c := .ClaimsToVerify}}{{if $i}}; {{end}}{{cell $c}}{{end}} | {{range $i, $e := .EvidenceIDs}}{{if $i}}, {{end}}`{{code $e}}`{{end}} | {{if .Exported}}ya{{else}}belum{{end}} |
+{{end}}{{end}}
+## 5. Blokir dan kegagalan
+{{if not .A.Blockers}}
+_Tidak ada._
+{{end}}{{range .A.Blockers}}
+- {{text .}}{{end}}
+
+## 6. Tindakan berikutnya (rekomendasi, belum dilakukan)
+{{if .HumanActions}}
+Keputusan manusia:
+{{range .HumanActions}}
+- {{text .Text}}{{if .Command}} — `{{code .Command}}`{{end}}{{end}}
+{{end}}{{if .AutomaticSteps}}
+Langkah otomatis yang aman:
+{{range .AutomaticSteps}}
+- {{text .Text}}{{if .Command}} — `{{code .Command}}`{{end}}{{end}}
+{{end}}{{range .Notes}}
+Catatan: {{text .Text}}
+{{end}}
+## 7. Biaya (dari ledger)
+
+- Total run terkait: {{usd .A.Counts.CostUSD}} · estimasi tidak pasti: {{usd .A.Counts.CostUncertainUSD}} · penyedia: mock
+
+## 8. Provenance
+
+- Konfigurasi saat workflow dibuat `{{code .A.Provenance.WorkflowConfigHash}}` · konfigurasi saat ini `{{code .A.Provenance.CurrentConfigHash}}`
+- Riset: konfigurasi `{{code .A.Provenance.ResearchConfigHash}}` · kunci fixture `{{code .A.Provenance.ResearchFixtureKey}}`
+- Strategi: konfigurasi `{{code .A.Provenance.StrategyConfigHash}}` · aturan skor `{{code .A.Provenance.ScoringConfigHash}}` · fixture `{{code .A.Provenance.StrategyFixture}}`
+{{range .A.ContentRuns}}- Run konten `{{code .RunID}}` (peluang `{{code .OpportunityID}}`, percobaan {{.Attempt}}, {{cell .Origin}}, status {{cell .Status}}, draf {{.Drafts}}) · konfigurasi `{{code .ConfigHash}}` · aturan konten `{{code .ContentConfigHash}}` · fixture `{{code .FixtureHash}}`
+{{end}}
+## 9. Riwayat workflow (hanya-tambah)
+
+| # | Waktu (UTC) | Jenis | Tahap | Ref | Keterangan |
+|---|---|---|---|---|---|
+{{range .A.Events}}| {{.Seq}} | {{cell .CreatedAt}} | {{cell .Kind}} | {{cell .Stage}} | {{if .RefID}}`{{code .RefID}}`{{end}} | {{cell .Detail}} |
+{{end}}
+---
+_Dirender {{cell .Generated}} oleh MIA dari basis data (mode mock). Laporan run riset, strategi, dan konten adalah snapshot terpisah; jalankan `mia report <run>` untuk merender ulang._

@@ -69,7 +69,7 @@ func TestMigrationFromPhase3DatabaseKeepsDataAndIntegrity(t *testing.T) {
 		t.Fatalf("upgrade: %v", err)
 	}
 	defer s.Close()
-	if n, _ := s.CountRows(ctx, "schema_migrations"); n != 3 {
+	if n, _ := s.CountRows(ctx, "schema_migrations"); n != 4 { // 0003 and 0004 applied on top of the Phase 3 schema
 		t.Fatalf("migrations = %d", n)
 	}
 	if res, err := s.Integrity(ctx); err != nil || res != "ok" {
@@ -102,7 +102,7 @@ func TestMigrationFromPhase3DatabaseKeepsDataAndIntegrity(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s2.Close()
-	if n, _ := s2.CountRows(ctx, "schema_migrations"); n != 3 {
+	if n, _ := s2.CountRows(ctx, "schema_migrations"); n != 4 {
 		t.Fatalf("migrations after reopen = %d", n)
 	}
 }
@@ -218,5 +218,52 @@ func TestRecordOpportunityDecisionIsAtomic(t *testing.T) {
 	}
 	if o, _ := s.GetOpportunity(ctx, "opp_b"); o.Status != domain.OppApproved {
 		t.Fatal("status mirror")
+	}
+}
+
+// A Phase 4 database (migrations 0001–0003 with a content draft and a review) upgrades to 0004 in place.
+func TestMigrationFromPhase4DatabaseKeepsDataAndIntegrity(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "mia.sqlite")
+	seedPhase3(t, path)
+	db, err := sql.Open("sqlite", fmt.Sprintf("file:%s?_pragma=foreign_keys(1)", path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := migrationFS.ReadFile("migrations/0003_content.sql")
+	for _, q := range []string{string(body),
+		`INSERT INTO schema_migrations(version, applied_at) VALUES ('0003_content.sql', 't')`,
+		`INSERT INTO research_runs(id, kind, status, created_at, config_hash, provider_name, parent_run_id) VALUES ('run_c','content','completed','t','h','mock','run_s')`,
+		`INSERT INTO agent_executions(id, run_id, agent_name, provider_name, schema_version, request_hash, outcome, created_at) VALUES ('exec_c','run_c','content','mock','content_drafts.v1','r','ok','t')`,
+		`INSERT INTO content_drafts(id, run_id, opportunity_id, strategy_run_id, research_run_id, proposal_index, content_type, variant, channel, target_segment, objective, body, status, content_hash, execution_id, config_hash, content_config_hash, scoring_config_hash, created_at, updated_at)
+		 VALUES ('draft_lama','run_c','opp_a','run_s','run_r',1,'education',1,'situs','AU1','o','isi','draft','hash_lama','exec_c','c','cc','sh','t','t')`,
+		`INSERT INTO content_draft_versions(draft_id, version, body, content_hash, author, status_after, created_at) VALUES ('draft_lama',1,'isi','hash_lama','agent','draft','t')`,
+	} {
+		if _, err := db.Exec(q); err != nil {
+			t.Fatalf("%v: %.80s", err, q)
+		}
+	}
+	db.Close()
+	s, err := Open(path)
+	if err != nil {
+		t.Fatalf("upgrade: %v", err)
+	}
+	defer s.Close()
+	if n, _ := s.CountRows(ctx, "schema_migrations"); n != 4 {
+		t.Fatalf("migrations = %d", n)
+	}
+	if res, _ := s.Integrity(ctx); res != "ok" {
+		t.Fatalf("integrity %q", res)
+	}
+	rows, _ := s.DB().Query(`PRAGMA foreign_key_check`)
+	if rows.Next() {
+		t.Fatal("foreign_key_check reports violations after the upgrade")
+	}
+	rows.Close()
+	if d, err := s.GetContentDraft(ctx, "draft_lama"); err != nil || d.Body != "isi" {
+		t.Fatalf("Phase 4 draft lost: %v", err)
+	}
+	if n, _ := s.CountRows(ctx, "workflows"); n != 0 {
+		t.Fatal("workflows table must exist and start empty")
 	}
 }

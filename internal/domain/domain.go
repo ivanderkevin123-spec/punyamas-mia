@@ -425,3 +425,53 @@ type ContentCounts struct {
 	ClaimsToVerify     int `json:"claims_to_verify"` // claims without supporting evidence across stored drafts
 	EvidenceLinks      int `json:"evidence_links"`
 }
+
+// Workflow statuses (Phase 5). A workflow status summarises orchestration; the statuses of runs,
+// opportunities and drafts stay authoritative.
+const (
+	WfCreated                   = "created"                     // research not finished yet; automatic step available
+	WfResearchCompleted         = "research_completed"          // research passed gate A; strategy next
+	WfStrategyCompleted         = "strategy_completed"          // approved opportunities without content; content generation next
+	WfAwaitingOpportunityReview = "awaiting_opportunity_review" // opportunities wait for a human decision
+	WfAwaitingContentReview     = "awaiting_content_review"     // drafts wait for review, revision or placeholders
+	WfCompleted                 = "completed"                   // at least one draft ready for handoff and nothing pending
+	WfBlocked                   = "blocked"                     // a quality gate or the budget stops the workflow
+	WfFailed                    = "failed"                      // a stage run failed or was interrupted; resume is possible
+)
+
+type Workflow struct {
+	ID                 string
+	Status             string
+	InputsDir          string
+	FixtureKey         string
+	ResearchRunID      string
+	StrategyRunID      string
+	LastCompletedStage string
+	FailedStage        string
+	Reason             string
+	SummaryJSON        string
+	ConfigHash         string
+	LeaseOwner         string
+	LeaseExpiresAt     string
+	CreatedAt          string
+	UpdatedAt          string
+}
+
+type WorkflowContentRun struct {
+	WorkflowID    string
+	OpportunityID string
+	Attempt       int
+	ContentRunID  string
+	Origin        string // workflow | adopted
+	CreatedAt     string
+}
+
+type WorkflowEvent struct {
+	WorkflowID string
+	Seq        int
+	Kind       string
+	Stage      string
+	RefID      string
+	Detail     string
+	CreatedAt  string
+}

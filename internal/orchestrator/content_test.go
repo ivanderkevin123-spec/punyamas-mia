@@ -16,6 +16,7 @@ import (
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/orchestrator"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/provider"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/provider/mock"
+	"github.com/ivanderkevin123-spec/punyamas-mia/internal/report"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/research/dedup"
 )
 
@@ -599,5 +600,35 @@ func TestContent_ReviewAppendOnlyAndRevision(t *testing.T) {
 	}
 	if _, err := e.st.DB().Exec(`UPDATE content_draft_versions SET body = 'x' WHERE draft_id = ?`, d.ID); err == nil {
 		t.Fatal("versions must be append-only")
+	}
+}
+
+// Regression (Phase 5): re-rendering a content report after reviews shows current counts, not the
+// counts captured in the run summary when the run finished.
+func TestContent_ReportCountsReflectReviewsAfterRun(t *testing.T) {
+	e := newEnv(t, nil)
+	ctx := context.Background()
+	_, opp := e.approved(t)
+	sum, err := e.orch.RunContent(ctx, orchestrator.Options{OpportunityID: opp.ID})
+	if err != nil || sum.Content.Approved != 0 {
+		t.Fatalf("setup: %v %+v", err, sum.Content)
+	}
+	ds := e.drafts(t, sum.RunID)
+	for _, idx := range []int{1, 4} {
+		if _, err := content.Review(ctx, e.st, e.ids, fixedNow, draftByIndex(ds, idx).ID, "approved", "ok", "CEO"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := content.Review(ctx, e.st, e.ids, fixedNow, draftByIndex(ds, 2).ID, "rejected", "tidak", "CEO"); err != nil {
+		t.Fatal(err)
+	}
+	run, _ := e.st.GetRun(ctx, sum.RunID)
+	rend := &report.Renderer{Store: e.st, Cfg: e.cfg, Now: now}
+	if _, _, err := rend.RenderContent(ctx, run, sum); err != nil { // the old summary, as `mia report <run>` uses it
+		t.Fatal(err)
+	}
+	md := e.contentReport(t, sum.RunID)
+	if !strings.Contains(md, "Status: perlu tinjauan 4 · lolos gerbang 3 · disetujui 2 · ditolak 1 · diblokir 0") || !strings.Contains(md, "diusulkan agen: 10") {
+		t.Fatal("re-rendered report must show the stored statuses, not the run-time snapshot")
 	}
 }

@@ -33,7 +33,7 @@ Semua temuan di bawah berstatus **draf untuk ditinjau manusia**. Fakta bersumber
 {{if not .Facts}}
 _Tidak ada fakta bersumber yang tervalidasi pada run ini._
 {{end}}{{range .Facts}}
-### [{{code .Ref}}] {{text .Title}}
+### `{{code .Ref}}` {{text .Title}}
 
 - **Pernyataan:** {{text .Statement}}
 - **Kualitas bukti:** {{.Quality}}{{if .TopicKey}} · **Topik:** `{{code .TopicKey}}`{{end}}
@@ -45,7 +45,7 @@ _Tidak ada fakta bersumber yang tervalidasi pada run ini._
 {{if not .Interps}}
 _Tidak ada interpretasi yang tervalidasi._
 {{end}}{{range .Interps}}
-### [{{code .Ref}}] {{text .Title}}
+### `{{code .Ref}}` {{text .Title}}
 
 - **Pernyataan:** {{text .Statement}}
 - **Alasan (menurut model):** {{text .Rationale}}
@@ -57,7 +57,7 @@ _Tidak ada interpretasi yang tervalidasi._
 {{if not .Hyps}}
 _Tidak ada hipotesis yang tervalidasi._
 {{end}}{{range .Hyps}}
-- **[{{code .Ref}}] {{text .Title}}** — {{text .Statement}}{{if .Cites}} (mengutip {{range $i, $c := .Cites}}{{if $i}}, {{end}}`{{code $c}}`{{end}}){{end}}{{if .Source}} · sumber internal: `{{code .Source.Reference}}`{{end}}{{if .Rationale}} · alasan: {{text .Rationale}}{{end}}
+- **`{{code .Ref}}` {{text .Title}}** — {{text .Statement}}{{if .Cites}} (mengutip {{range $i, $c := .Cites}}{{if $i}}, {{end}}`{{code $c}}`{{end}}){{end}}{{if .Source}} · sumber internal: `{{code .Source.Reference}}`{{end}}{{if .Rationale}} · alasan: {{text .Rationale}}{{end}}
 {{end}}
 ## 6. Sumber ({{len .Sources}})
 
@@ -68,16 +68,16 @@ _Tidak ada hipotesis yang tervalidasi._
 ## 7. Belum divalidasi, ditolak, duplikat, dan konten mencurigakan
 {{if .Unvalidated}}
 ### Belum divalidasi ({{len .Unvalidated}}) — bukan temuan; langkah validasi belum dijalankan
-{{range .Unvalidated}}- [{{code .Ref}}] {{text .Title}} — status: {{cell .Status}} ({{.Kind}}, kualitas {{.Quality}})
+{{range .Unvalidated}}- `{{code .Ref}}` {{text .Title}} — status: {{cell .Status}} ({{.Kind}}, kualitas {{.Quality}})
 {{end}}{{end}}{{if .Rejected}}
 ### Ditolak ({{len .Rejected}})
-{{range .Rejected}}- **[{{code .Ref}}] {{text .Title}}** ({{.Kind}}): {{range $i, $e := .Errors}}{{if $i}}; {{end}}{{text $e}}{{end}}
+{{range .Rejected}}- **`{{code .Ref}}` {{text .Title}}** ({{.Kind}}): {{range $i, $e := .Errors}}{{if $i}}; {{end}}{{text $e}}{{end}}
 {{end}}{{end}}{{if .Dups}}
 ### Duplikat ({{len .Dups}})
-{{range .Dups}}- [{{code .Ref}}] {{text .Title}} → duplikat dari `{{code .DuplicateOf}}`
+{{range .Dups}}- `{{code .Ref}}` {{text .Title}} → duplikat dari `{{code .DuplicateOf}}`
 {{end}}{{end}}{{if .Susp}}
 ### Konten mencurigakan — dikecualikan dari masukan agen ({{len .Susp}})
-{{range .Susp}}- [{{code .Ref}}] {{text .Title}}
+{{range .Susp}}- `{{code .Ref}}` {{text .Title}}
 {{end}}{{end}}{{if and (not .Unvalidated) (not .Rejected) (not .Dups) (not .Susp)}}
 _Tidak ada._
 {{end}}

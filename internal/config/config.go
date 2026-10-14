@@ -213,7 +213,15 @@ type Config struct {
 	Limits   Limits
 	Scoring  Scoring
 	Content  Content
+	Workflow Workflow
 	Hash     string
+}
+
+// Workflow holds the Phase 5 orchestration limits (config/workflow.yaml).
+type Workflow struct {
+	Version           string `yaml:"version"`
+	MaxRunsPerCommand int    `yaml:"max_runs_per_command"`
+	LeaseSeconds      int    `yaml:"lease_seconds"`
 }
 
 // ContentTypes are the content types the Phase 4 Content Agent supports (mirrored by a CHECK constraint in 0003_content.sql).
@@ -288,7 +296,7 @@ type ConflictRules struct {
 	MinSimilarity   float64 `yaml:"min_similarity"`
 }
 
-var files = []string{"brand.yaml", "business.yaml", "marketing-policy.yaml", "research-sources.yaml", "agent-limits.yaml", "scoring.yaml", "content.yaml"}
+var files = []string{"brand.yaml", "business.yaml", "marketing-policy.yaml", "research-sources.yaml", "agent-limits.yaml", "scoring.yaml", "content.yaml", "workflow.yaml"}
 
 var secretPattern = regexp.MustCompile(`sk-ant-[A-Za-z0-9_-]{8,}|AKIA[0-9A-Z]{12,}|-----BEGIN [A-Z ]*PRIVATE KEY`)
 
@@ -398,6 +406,9 @@ func Load(root string) (*Config, error) {
 	}
 	ch := sha256.Sum256(raw["content.yaml"])
 	cfg.Content.Hash = hex.EncodeToString(ch[:])[:16]
+	if err := decodeStrict(raw["workflow.yaml"], &cfg.Workflow); err != nil {
+		return nil, fmt.Errorf("workflow.yaml: %w", err)
+	}
 
 	if v := os.Getenv("MIA_WORKSPACE_ROOT"); v != "" {
 		cfg.Sources.Workspace.Root = v
@@ -542,6 +553,12 @@ func (c *Config) Validate() error {
 		add("scoring kpis, segments, pillars and efforts must be non-empty")
 	}
 	c.validateContent(add)
+	if c.Workflow.MaxRunsPerCommand < 1 || c.Workflow.MaxRunsPerCommand > 20 {
+		add("workflow max_runs_per_command must be between 1 and 20")
+	}
+	if c.Workflow.LeaseSeconds < 30 || c.Workflow.LeaseSeconds > 86400 {
+		add("workflow lease_seconds must be between 30 and 86400")
+	}
 	if len(errs) > 0 {
 		return errors.New("config validation failed:\n  - " + strings.Join(errs, "\n  - "))
 	}

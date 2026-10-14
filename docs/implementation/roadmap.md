@@ -1,6 +1,6 @@
 # MIA — Implementation Roadmap
 
-**Status:** Phases 0–3 committed (`4ccd4fa`); Phase 4 implemented 2026-10-14 (uncommitted, awaiting approval); Phases 5–7 are **not started** and each requires its own approval. Costs are external USD costs; the monthly ceiling is USD 20.
+**Status:** Phases 0–4 committed (`fab8255`); Phase 5 (workflow orchestration) implemented 2026-10-14 (uncommitted, awaiting approval); performance analysis (originally Phase 5) is deferred; Phases 6–7 are **not started** and each requires its own approval. Costs are external USD costs; the monthly ceiling is USD 20.
 
 ## 0. Ringkasan (Bahasa Indonesia)
 
@@ -69,7 +69,11 @@ Delivered: Content Agent over one approved opportunity (`internal/agent/content`
 | Cost | USD 0 mock; ≈ USD 0.03–0.5 per 3 briefs live depending on model [A] |
 | Approval gate | Phase 4 report with sample briefs and checker results; owner approves Phase 5 |
 
-## Phase 5 — Performance analysis
+## Phase 5 — Workflow orchestration and quality gate (implemented 2026-10-14; see `phase5-plan.md`, `phase5-report.md`)
+
+Redefined by the Phase 5 request: one auditable, resumable workflow over the existing steps (research → strategy → opportunity review → content → content review → export), quality gates A–E reusing Phase 2–4 validators, migration `0004_workflow.sql`, CLI `workflow start|run|resume|show|list|next|report|export`, workflow report. No new agents, no new dependencies.
+
+## Deferred — Performance analysis (originally planned as Phase 5; phase number to be assigned by the owner)
 
 | Field | Content |
 |---|---|

@@ -67,6 +67,9 @@ type Options struct {
 	OpportunityID string
 	ContentTypes  []string
 	Regenerate    bool
+	// RunID, when set, is the ID of the new run (callers that reserve the ID before starting a run,
+	// such as the Phase 5 workflow, use it for crash-safe idempotency). Ignored when resuming.
+	RunID      string
 	FixtureKey string
 	ResumeID   string
 	Until      string
@@ -134,6 +137,14 @@ type inputsJSON struct {
 }
 
 func (o *Orchestrator) ts() string { return o.d.Now().UTC().Format(time.RFC3339) }
+
+// newRunID returns the caller-reserved run ID or a freshly generated one.
+func (o *Orchestrator) newRunID(opts Options) string {
+	if opts.RunID != "" {
+		return opts.RunID
+	}
+	return o.d.IDs.New("run")
+}
 
 func (o *Orchestrator) defs() []stepDef {
 	return []stepDef{
@@ -206,7 +217,7 @@ func (o *Orchestrator) RunResearch(ctx context.Context, opts Options) (*domain.R
 			opts.FixtureKey = filepath.Base(abs)
 		}
 		inJ, _ := json.Marshal(inputsJSON{InputsDir: opts.InputsDir, FixtureKey: opts.FixtureKey})
-		run = &domain.Run{ID: o.d.IDs.New("run"), Kind: "research", Status: domain.RunRunning, CreatedAt: now, StartedAt: now, HeartbeatAt: now,
+		run = &domain.Run{ID: o.newRunID(opts), Kind: "research", Status: domain.RunRunning, CreatedAt: now, StartedAt: now, HeartbeatAt: now,
 			ConfigHash: o.d.Cfg.Hash, ProviderName: o.d.Provider.Name(), InputsJSON: string(inJ), SummaryJSON: "{}", CostMeasurable: true}
 		if err := o.d.Store.CreateRun(ctx, run); err != nil {
 			return nil, err

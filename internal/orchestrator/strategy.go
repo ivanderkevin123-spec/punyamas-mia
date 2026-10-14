@@ -146,7 +146,7 @@ func (o *Orchestrator) RunStrategy(ctx context.Context, opts Options) (*domain.R
 			opts.FixtureKey = pin.FixtureKey
 		}
 		inJ, _ := json.Marshal(strategyInputs{FromRun: parent.ID, FixtureKey: opts.FixtureKey})
-		run = &domain.Run{ID: o.d.IDs.New("run"), Kind: "strategy", Status: domain.RunRunning, CreatedAt: now, StartedAt: now, HeartbeatAt: now,
+		run = &domain.Run{ID: o.newRunID(opts), Kind: "strategy", Status: domain.RunRunning, CreatedAt: now, StartedAt: now, HeartbeatAt: now,
 			ConfigHash: o.d.Cfg.Hash, ProviderName: o.d.Provider.Name(), InputsJSON: string(inJ), SummaryJSON: "{}", CostMeasurable: true, ParentRunID: parent.ID}
 		if err := o.d.Store.CreateRun(ctx, run); err != nil {
 			return nil, err

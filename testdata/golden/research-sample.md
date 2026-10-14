@@ -30,21 +30,21 @@ Semua temuan di bawah berstatus **draf untuk ditinjau manusia**. Fakta bersumber
 
 ## 3. Fakta bersumber (5)
 
-### [artikel-edukasi-contoh.json#1] Artikel contoh menyarankan memeriksa timbangan di depan penjual
+### `artikel-edukasi-contoh.json#1` Artikel contoh menyarankan memeriksa timbangan di depan penjual
 
 - **Pernyataan:** Artikel contoh menyarankan agar penjual meminta penimbangan dilakukan di depan mata dan menanyakan kadar yang dipakai sebagai dasar harga.
 - **Kualitas bukti:** B · **Topik:** `transparansi_penimbangan`
 - **Sumber:** CONTOH — artikel edukasi fiktif (pengujian) — `https://example.com/contoh/cara-jual-emas` (diambil 2026-10-11, terbit 2026-09-01) · artikel-edukasi-contoh.json bagian 1
 - **Kutipan:** "Mintalah agar timbangan dilakukan di depan Anda dan tanyakan kadar yang menjadi dasar harga."
 
-### [artikel-edukasi-contoh.json#2] Artikel contoh menjelaskan bahwa penawaran bisa berbeda antar toko
+### `artikel-edukasi-contoh.json#2` Artikel contoh menjelaskan bahwa penawaran bisa berbeda antar toko
 
 - **Pernyataan:** Artikel contoh menyatakan bahwa penawaran harga untuk barang yang sama dapat berbeda antar toko karena perbedaan metode uji dan potongan.
 - **Kualitas bukti:** B · **Topik:** `praktik_harga_pesaing`
 - **Sumber:** CONTOH — artikel edukasi fiktif (pengujian) — `https://example.com/contoh/cara-jual-emas` (diambil 2026-10-11, terbit 2026-09-01) · artikel-edukasi-contoh.json bagian 2
 - **Kutipan:** "Penawaran dapat berbeda antar toko karena metode uji dan potongan yang berbeda."
 
-### [catatan-lapangan-contoh.md#1] Toko emas contoh A memasang papan harga per gram
+### `catatan-lapangan-contoh.md#1` Toko emas contoh A memasang papan harga per gram
 
 - **Pernyataan:** Petugas mencatat bahwa papan di depan toko menampilkan angka per gram untuk emas 24K dan 22K dan menyebut "harga tertinggi" sebagai slogan.
 - **Kualitas bukti:** A · **Topik:** `praktik_harga_pesaing`
@@ -52,14 +52,14 @@ Semua temuan di bawah berstatus **draf untuk ditinjau manusia**. Fakta bersumber
 - **Kutipan:** "Papan di depan toko: harga beli per gram 24K dan 22K; slogan "harga tertinggi se-pasar"."
 - **Tanda klaim terlarang (jangan dipakai dalam konten Punyamas):** SUPERLATIF ("tertinggi")
 
-### [catatan-lapangan-contoh.md#2] Toko emas contoh B menimbang di belakang konter
+### `catatan-lapangan-contoh.md#2` Toko emas contoh B menimbang di belakang konter
 
 - **Pernyataan:** Penimbangan dilakukan di meja belakang yang tidak terlihat dari sisi pembeli; pembeli hanya menerima angka akhir.
 - **Kualitas bukti:** A · **Topik:** `transparansi_penimbangan`
 - **Sumber:** CONTOH — catatan lapangan fiktif untuk pengujian MIA — `imports/sample/catatan-lapangan-contoh.md` (diambil 2026-10-10) · catatan-lapangan-contoh.md bagian 2
 - **Kutipan:** "Timbangan berada di ruang belakang; pembeli tidak melihat proses penimbangan."
 
-### [catatan-lapangan-contoh.md#3] Pengunjung menanyakan apakah perlu membawa KTP
+### `catatan-lapangan-contoh.md#3` Pengunjung menanyakan apakah perlu membawa KTP
 
 - **Pernyataan:** Dua pengunjung yang diamati bertanya kepada petugas apakah KTP diperlukan untuk menjual perhiasan.
 - **Kualitas bukti:** A · **Topik:** `pertanyaan_identitas`
@@ -68,14 +68,14 @@ Semua temuan di bawah berstatus **draf untuk ditinjau manusia**. Fakta bersumber
 
 ## 4. Interpretasi model (2)
 
-### [agent:exec_0001#1] Transparansi penimbangan adalah titik pembeda yang terlihat di lapangan
+### `agent:exec_0001#1` Transparansi penimbangan adalah titik pembeda yang terlihat di lapangan
 
 - **Pernyataan:** Pengamatan contoh menunjukkan ada toko yang menimbang di luar pandangan pembeli, sementara artikel edukasi contoh menyarankan penimbangan di depan penjual; kejelasan proses tampak menjadi kebutuhan yang belum selalu dipenuhi.
 - **Alasan (menurut model):** Catatan lapangan contoh B mencatat penimbangan di ruang belakang; artikel edukasi contoh menyarankan penimbangan di depan penjual.
 - **Mengutip:** `artikel-edukasi-contoh.json#1`, `catatan-lapangan-contoh.md#2`
 - **Kualitas bukti pendukung terlemah:** B · **Topik:** `transparansi_penimbangan`
 
-### [agent:exec_0001#2] Slogan harga superlatif dipakai pesaing contoh
+### `agent:exec_0001#2` Slogan harga superlatif dipakai pesaing contoh
 
 - **Pernyataan:** Toko contoh A memakai slogan harga superlatif pada papan; Punyamas tidak boleh menirunya karena kategori SUPERLATIF dilarang, dan dapat menonjolkan dasar hitung sebagai gantinya.
 - **Alasan (menurut model):** Catatan lapangan contoh A mencatat slogan pada papan; kebijakan merek melarang superlatif.
@@ -84,23 +84,23 @@ Semua temuan di bawah berstatus **draf untuk ditinjau manusia**. Fakta bersumber
 
 ## 5. Hipotesis (9)
 
-- **[agent:exec_0001#3] Pertanyaan tentang KTP berulang sebelum transaksi** — Kebutuhan identitas tampaknya menjadi pertanyaan yang berulang dari calon penjual; penjelasan singkat tentang alasan pencatatan identitas mungkin mengurangi keraguan. (mengutip `catatan-lapangan-contoh.md#3`, `workspace:w1#3`) · alasan: Dua pengunjung dalam satu jam pengamatan contoh menanyakan KTP; FAQ internal juga memuat pertanyaan ini.
+- **`agent:exec_0001#3` Pertanyaan tentang KTP berulang sebelum transaksi** — Kebutuhan identitas tampaknya menjadi pertanyaan yang berulang dari calon penjual; penjelasan singkat tentang alasan pencatatan identitas mungkin mengurangi keraguan. (mengutip `catatan-lapangan-contoh.md#3`, `workspace:w1#3`) · alasan: Dua pengunjung dalam satu jam pengamatan contoh menanyakan KTP; FAQ internal juga memuat pertanyaan ini.
 
-- **[pertanyaan-pelanggan-contoh.csv#2] Pertanyaan: berapa lama proses penjualan** — Calon penjual ingin tahu berapa lama proses dari datang sampai pembayaran selesai. · sumber internal: `imports/sample/pertanyaan-pelanggan-contoh.csv`
+- **`pertanyaan-pelanggan-contoh.csv#2` Pertanyaan: berapa lama proses penjualan** — Calon penjual ingin tahu berapa lama proses dari datang sampai pembayaran selesai. · sumber internal: `imports/sample/pertanyaan-pelanggan-contoh.csv`
 
-- **[pertanyaan-pelanggan-contoh.csv#3] Pertanyaan: apakah perhiasan patah masih dibeli** — Calon penjual ragu apakah perhiasan yang patah atau tanpa surat masih bisa dijual. · sumber internal: `imports/sample/pertanyaan-pelanggan-contoh.csv`
+- **`pertanyaan-pelanggan-contoh.csv#3` Pertanyaan: apakah perhiasan patah masih dibeli** — Calon penjual ragu apakah perhiasan yang patah atau tanpa surat masih bisa dijual. · sumber internal: `imports/sample/pertanyaan-pelanggan-contoh.csv`
 
-- **[pertanyaan-pelanggan-contoh.csv#4] Pertanyaan: bagaimana kadar ditentukan** — Calon penjual tidak memahami bagaimana kadar emas diuji dan siapa yang menentukannya. · sumber internal: `imports/sample/pertanyaan-pelanggan-contoh.csv`
+- **`pertanyaan-pelanggan-contoh.csv#4` Pertanyaan: bagaimana kadar ditentukan** — Calon penjual tidak memahami bagaimana kadar emas diuji dan siapa yang menentukannya. · sumber internal: `imports/sample/pertanyaan-pelanggan-contoh.csv`
 
-- **[workspace:w1#1] Apakah Punyamas sudah beroperasi?** — Calon pelanggan mungkin bertanya: Apakah Punyamas sudah beroperasi? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
+- **`workspace:w1#1` Apakah Punyamas sudah beroperasi?** — Calon pelanggan mungkin bertanya: Apakah Punyamas sudah beroperasi? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
 
-- **[workspace:w1#2] Emas apa saja yang bisa dijual ke Punyamas?** — Calon pelanggan mungkin bertanya: Emas apa saja yang bisa dijual ke Punyamas? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
+- **`workspace:w1#2` Emas apa saja yang bisa dijual ke Punyamas?** — Calon pelanggan mungkin bertanya: Emas apa saja yang bisa dijual ke Punyamas? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
 
-- **[workspace:w1#3] Apakah saya perlu membawa identitas?** — Calon pelanggan mungkin bertanya: Apakah saya perlu membawa identitas? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
+- **`workspace:w1#3` Apakah saya perlu membawa identitas?** — Calon pelanggan mungkin bertanya: Apakah saya perlu membawa identitas? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
 
-- **[workspace:w1#4] Bagaimana cara Punyamas menetapkan harga?** — Calon pelanggan mungkin bertanya: Bagaimana cara Punyamas menetapkan harga? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
+- **`workspace:w1#4` Bagaimana cara Punyamas menetapkan harga?** — Calon pelanggan mungkin bertanya: Bagaimana cara Punyamas menetapkan harga? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
 
-- **[workspace:w1#5] Bisakah saya menolak penawaran Punyamas?** — Calon pelanggan mungkin bertanya: Bisakah saya menolak penawaran Punyamas? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
+- **`workspace:w1#5` Bisakah saya menolak penawaran Punyamas?** — Calon pelanggan mungkin bertanya: Bisakah saya menolak penawaran Punyamas? · sumber internal: `docs/05-marketing/W1-naskah-situs-company-profile.md`
 
 ## 6. Sumber (4)
 

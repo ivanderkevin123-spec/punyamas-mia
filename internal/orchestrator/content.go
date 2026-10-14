@@ -115,7 +115,7 @@ func (o *Orchestrator) RunContent(ctx context.Context, opts Options) (*domain.Ru
 			opts.FixtureKey = src.StrategyFixtureKey + "-" + src.Opportunity.TopicKey
 		}
 		inJ, _ := json.Marshal(contentInputs{OpportunityID: src.Opportunity.ID, FixtureKey: opts.FixtureKey, ContentTypes: opts.ContentTypes, Regenerate: opts.Regenerate})
-		run = &domain.Run{ID: o.d.IDs.New("run"), Kind: "content", Status: domain.RunRunning, CreatedAt: now, StartedAt: now, HeartbeatAt: now,
+		run = &domain.Run{ID: o.newRunID(opts), Kind: "content", Status: domain.RunRunning, CreatedAt: now, StartedAt: now, HeartbeatAt: now,
 			ConfigHash: cfg.Hash, ProviderName: o.d.Provider.Name(), InputsJSON: string(inJ), SummaryJSON: "{}", CostMeasurable: true, ParentRunID: src.Opportunity.RunID}
 		if err := o.d.Store.CreateRun(ctx, run); err != nil {
 			return nil, err

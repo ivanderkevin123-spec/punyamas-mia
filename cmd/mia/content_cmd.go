@@ -67,6 +67,9 @@ func cmdRunContent(ctx context.Context, args []string, stdout, stderr io.Writer)
 			list = append(list, t)
 		}
 	}
+	if !checkIDs(stderr, "peluang", *opp, "run", *resume) {
+		return 1
+	}
 	a, err := newApp(*root, stderr)
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
@@ -125,6 +128,9 @@ func cmdContentList(ctx context.Context, args []string, stdout, stderr io.Writer
 		fmt.Fprintln(stderr, "gunakan: mia content list --run RUN_ID  atau  --opportunity ID")
 		return 1
 	}
+	if !checkIDs(stderr, "run", *runID, "peluang", *oppID) {
+		return 1
+	}
 	a, err := newApp(*root, io.Discard)
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
@@ -166,6 +172,9 @@ func cmdContentList(ctx context.Context, args []string, stdout, stderr io.Writer
 }
 
 func loadDraftView(ctx context.Context, a *app, id string, stderr io.Writer) (*domain.ContentDraft, *report.DraftView, bool) {
+	if !checkIDs(stderr, "draf", id) {
+		return nil, nil, false
+	}
 	d, err := a.store.GetContentDraft(ctx, id)
 	if errors.Is(err, store.ErrNotFound) {
 		fmt.Fprintf(stderr, "draf %q tidak ditemukan\n", id)
@@ -276,6 +285,9 @@ func cmdContentReview(ctx context.Context, args []string, stdout, stderr io.Writ
 		return 1
 	}
 	defer a.close()
+	if !checkIDs(stderr, "draf", *id) {
+		return 1
+	}
 	d, err := content.Review(ctx, a.store, a.ids, a.now(), *id, *decision, *note, *by)
 	if err != nil {
 		fmt.Fprintln(stderr, "ditolak:", err)
@@ -339,6 +351,9 @@ func cmdContentRevise(ctx context.Context, args []string, stdout, stderr io.Writ
 		return 1
 	}
 	defer a.close()
+	if !checkIDs(stderr, "draf", *id) {
+		return 1
+	}
 	ev, err := content.New(a.cfg, a.checker)
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
@@ -389,10 +404,22 @@ func cmdContentExport(ctx context.Context, args []string, stdout, stderr io.Writ
 	if name == "" {
 		name = d.ID + ".md"
 	}
+	target, err := exportDraft(ctx, a, d, v, name)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	fmt.Fprintf(stdout, "draf diekspor sebagai DRAF: %s (status %s; serah terima manual, bukan publikasi)\n", target, d.Status)
+	return 0
+}
+
+// exportDraft renders the DRAF export of one draft and writes it atomically under drafts/content/<name>.
+// It is the only export path for content drafts (used by content export and workflow export); it never
+// writes the database and refuses targets outside the drafts directory or inside the Punyamas workspace.
+func exportDraft(ctx context.Context, a *app, d *domain.ContentDraft, v *report.DraftView, name string) (string, error) {
 	target, err := safepath.ResolveDraftPath(filepath.Join(a.cfg.Paths.DraftsDir, "content"), name, a.cfg.Sources.Workspace.Root)
 	if err != nil {
-		fmt.Fprintln(stderr, "ditolak:", err)
-		return 1
+		return "", fmt.Errorf("ditolak: %w", err)
 	}
 	var oppView *report.OppView
 	if op, err := a.store.GetOpportunity(ctx, d.OpportunityID); err == nil {
@@ -400,13 +427,10 @@ func cmdContentExport(ctx context.Context, args []string, stdout, stderr io.Writ
 	}
 	body, err := a.rend.RenderContentExport(v, oppView)
 	if err != nil {
-		fmt.Fprintln(stderr, "kesalahan:", err)
-		return 1
+		return "", fmt.Errorf("kesalahan: %w", err)
 	}
 	if err := safepath.WriteAtomic(target, body, 0o644); err != nil {
-		fmt.Fprintln(stderr, "ekspor gagal (draf tersimpan tidak berubah):", err)
-		return 1
+		return "", fmt.Errorf("ekspor gagal (draf tersimpan tidak berubah): %w", err)
 	}
-	fmt.Fprintf(stdout, "draf diekspor sebagai DRAF: %s (status %s; serah terima manual, bukan publikasi)\n", target, d.Status)
-	return 0
+	return target, nil
 }

@@ -288,7 +288,7 @@ func TestDuplicatesWithinRunAndAgainstExistingDrafts(t *testing.T) {
 // The Content Agent path must not be able to reach the network: no package on it imports net, net/http or os/exec.
 func TestNoNetworkImports(t *testing.T) {
 	root := testutil.RepoRoot(t)
-	for _, dir := range []string{"internal/content", "internal/agent/content", "internal/claims", "internal/safepath", "internal/orchestrator", "internal/provider/mock", "internal/report", "cmd/mia"} {
+	for _, dir := range []string{"internal/content", "internal/agent/content", "internal/claims", "internal/safepath", "internal/orchestrator", "internal/provider/mock", "internal/report", "internal/workflow", "internal/store", "cmd/mia"} {
 		entries, err := os.ReadDir(filepath.Join(root, dir))
 		if err != nil {
 			t.Fatal(err)

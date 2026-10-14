@@ -1,4 +1,4 @@
-// Command mia is the Punyamas Marketing Intelligence Agent CLI (Phase 4: mock-only).
+// Command mia is the Punyamas Marketing Intelligence Agent CLI (Phase 5: mock-only).
 package main
 
 import (
@@ -25,11 +25,12 @@ import (
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/report"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/research/importer"
 	"github.com/ivanderkevin123-spec/punyamas-mia/internal/store"
+	"github.com/ivanderkevin123-spec/punyamas-mia/internal/workflow"
 )
 
-const version = "0.4.0-phase4"
+const version = "0.5.0-phase5"
 
-const usage = `mia — Punyamas Marketing Intelligence Agent (Fase 4, mode mock)
+const usage = `mia — Punyamas Marketing Intelligence Agent (Fase 5, mode mock)
 
 Perintah:
   run research --inputs DIR [--fixture KEY] [--until STEP] [--force]   jalankan alur riset
@@ -51,6 +52,10 @@ Perintah:
   content review --id DRAFT_ID --decision approved|rejected --note TEKS   keputusan peninjau (bukan izin publikasi)
   content revise --id DRAFT_ID [--hook T] [--headline T] [--body-file PATH] [--cta T] --note TEKS
   content export --id DRAFT_ID [--out NAMA_RELATIF]                    ekspor DRAF ke drafts/content untuk serah terima manual
+  workflow start --inputs DIR [--fixture KEY] [--new]                  Fase 5: workflow riset → strategi → tinjauan → draf → tinjauan → ekspor
+  workflow run --id WF | workflow resume --id WF [--new-content-run OPP]   tahap otomatis aman berikutnya (tidak pernah menyetujui atau menerbitkan)
+  workflow show --id WF | workflow next --id WF | workflow list        status langsung dari basis data dan tindakan berikutnya
+  workflow report --id WF | workflow export --id WF [--dir NAMA]       laporan workflow; ekspor draf yang siap serah terima
   version
 
 Opsi umum: --root DIR (default: direktori kerja). Kode keluar: 0 ok, 1 kesalahan, 2 run gagal atau perlu tinjauan.
@@ -70,6 +75,7 @@ type app struct {
 	now     func() time.Time
 	logF    *os.File
 	checker *brand.Checker
+	wf      *workflow.Service
 }
 
 func newApp(root string, stderr io.Writer) (*app, error) {
@@ -106,7 +112,8 @@ func newApp(root string, stderr io.Writer) (*app, error) {
 	gate := &budget.Gate{Store: st, Caps: cfg.Limits.Caps, Prices: cfg.Limits.PriceTable, Now: now, IDs: gen}
 	rend := &report.Renderer{Store: st, Cfg: cfg, Now: now}
 	orch := orchestrator.New(orchestrator.Deps{Cfg: cfg, Store: st, Provider: prov, Budget: gate, Checker: checker, Renderer: rend, Log: logger, IDs: gen, Now: now})
-	return &app{cfg: cfg, store: st, log: logger, orch: orch, rend: rend, ids: gen, now: now, logF: logF, checker: checker}, nil
+	wfs := &workflow.Service{Store: st, Orch: orch, Cfg: cfg, IDs: gen, Now: now, Log: logger}
+	return &app{cfg: cfg, store: st, log: logger, orch: orch, rend: rend, ids: gen, now: now, logF: logF, checker: checker, wf: wfs}, nil
 }
 
 func (a *app) close() {
@@ -172,6 +179,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "gunakan: mia approve asset ... | mia approve opportunity ...")
 			return 1
 		}
+	case "workflow":
+		return cmdWorkflow(ctx, args[1:], stdout, stderr)
 	case "opportunities":
 		return cmdOpportunities(ctx, args[1:], stdout, stderr)
 	case "content":
@@ -206,6 +215,9 @@ func cmdRun(ctx context.Context, args []string, until string, stdout, stderr io.
 		return 1
 	}
 	defer a.close()
+	if !checkIDs(stderr, "run", *resume) {
+		return 1
+	}
 	sum, err := a.orch.RunResearch(ctx, orchestrator.Options{InputsDir: *inputs, FixtureKey: *fixture, ResumeID: *resume, Until: *untilFlag, Force: *force})
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
@@ -289,6 +301,9 @@ func cmdStatus(ctx context.Context, args []string, stdout, stderr io.Writer) int
 		}
 		return 0
 	}
+	if !checkIDs(stderr, "run", fs.Arg(0)) {
+		return 1
+	}
 	r, err := a.store.GetRun(ctx, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
@@ -344,6 +359,9 @@ func cmdReport(ctx context.Context, args []string, stdout, stderr io.Writer) int
 		return 1
 	}
 	defer a.close()
+	if !checkIDs(stderr, "run", fs.Arg(0)) {
+		return 1
+	}
 	r, err := a.store.GetRun(ctx, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)

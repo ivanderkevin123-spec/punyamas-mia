@@ -34,8 +34,8 @@ Semua peluang di bawah adalah **usulan** yang menunggu tinjauan manusia; tidak a
 - **Kebutuhan pelanggan:** Penjual perorangan ingin melihat sendiri proses penimbangan dan dasar harga karena khawatir ditipu timbangan atau kadar.
 - **Interpretasi strategis (bukan fakta):** Interpretasi: ada toko contoh yang menimbang di luar pandangan pembeli, sementara artikel edukasi menyarankan penimbangan di depan penjual; kejelasan proses tampak menjadi kebutuhan yang belum selalu dipenuhi.
 - **Fakta pendukung (ID bukti):**
-  - `item_0004` [catatan-lapangan-contoh.md#2] kualitas A — Penimbangan dilakukan di meja belakang yang tidak terlihat dari sisi pembeli; pembeli hanya menerima angka akhir. (sumber: CONTOH — catatan lapangan fiktif untuk pengujian MIA)
-  - `item_0001` [artikel-edukasi-contoh.json#1] kualitas B — Artikel contoh menyarankan agar penjual meminta penimbangan dilakukan di depan mata dan menanyakan kadar yang dipakai sebagai dasar harga. (sumber: CONTOH — artikel edukasi fiktif (pengujian))
+  - `item_0004` `catatan-lapangan-contoh.md#2` kualitas A — Penimbangan dilakukan di meja belakang yang tidak terlihat dari sisi pembeli; pembeli hanya menerima angka akhir. (sumber: CONTOH — catatan lapangan fiktif untuk pengujian MIA)
+  - `item_0001` `artikel-edukasi-contoh.json#1` kualitas B — Artikel contoh menyarankan agar penjual meminta penimbangan dilakukan di depan mata dan menanyakan kadar yang dipakai sebagai dasar harga. (sumber: CONTOH — artikel edukasi fiktif (pengujian))
 - **Penilaian:** Kekuatan bukti 3 (code) · Niat pelanggan 2 (agent) · Kesesuaian strategis 3 (agent) · Kemudahan pengujian 3 (agent) · Keterukuran 2 (agent)
 - **Pesan (bahasa niat):** Kami akan menimbang dan menguji barang Bapak atau Ibu di depan Bapak atau Ibu, dan harga akan datang dengan dasar hitungnya.
 - **Konsep penawaran:** Seri konten edukasi pendek: apa yang terjadi di meja penimbangan dan bagaimana dasar harga dijelaskan. · **Kanal:** Media sosial dan WhatsApp Business (setelah syarat M1 terpenuhi)
@@ -54,9 +54,9 @@ Semua peluang di bawah adalah **usulan** yang menunggu tinjauan manusia; tidak a
 - **Kebutuhan pelanggan:** Calon penjual bertanya apakah KTP diperlukan dan ragu tentang pencatatan identitas.
 - **Interpretasi strategis (bukan fakta):** Interpretasi: penjelasan singkat mengapa identitas dicatat (sebagai perlindungan, bukan hambatan) dapat mengurangi keraguan sebelum kunjungan.
 - **Fakta pendukung (ID bukti):**
-  - `item_0005` [catatan-lapangan-contoh.md#3] kualitas A — Dua pengunjung yang diamati bertanya kepada petugas apakah KTP diperlukan untuk menjual perhiasan. (sumber: CONTOH — catatan lapangan fiktif untuk pengujian MIA)
+  - `item_0005` `catatan-lapangan-contoh.md#3` kualitas A — Dua pengunjung yang diamati bertanya kepada petugas apakah KTP diperlukan untuk menjual perhiasan. (sumber: CONTOH — catatan lapangan fiktif untuk pengujian MIA)
 - **Hipotesis yang dikutip:**
-  - `item_0011` [workspace:w1#3] — Calon pelanggan mungkin bertanya: Apakah saya perlu membawa identitas?
+  - `item_0011` `workspace:w1#3` — Calon pelanggan mungkin bertanya: Apakah saya perlu membawa identitas?
 - **Penilaian:** Kekuatan bukti 3 (code) · Niat pelanggan 2 (agent+cap (kurang dari dua sumber independen)) · Kesesuaian strategis 2 (agent) · Kemudahan pengujian 3 (agent) · Keterukuran 2 (agent)
 - **Pesan (bahasa niat):** Untuk setiap transaksi, kami akan mencatat identitas. Data Bapak atau Ibu hanya dipakai untuk keperluan yang diwajibkan.
 - **Konsep penawaran:** Tanya-jawab singkat tentang identitas pada halaman edukasi dan balasan otomatis WhatsApp. · **Kanal:** Halaman tanya-jawab situs dan WhatsApp Business
@@ -75,8 +75,8 @@ Semua peluang di bawah adalah **usulan** yang menunggu tinjauan manusia; tidak a
 - **Kebutuhan pelanggan:** Penjual berulang ingin harga yang konsisten dan paham mengapa penawaran berbeda antar toko.
 - **Interpretasi strategis (bukan fakta):** Interpretasi: menjelaskan komponen penawaran (berat bersih, kadar, pengurang) tanpa menyebut angka dapat membangun kepercayaan tanpa bersaing lewat klaim harga.
 - **Fakta pendukung (ID bukti):**
-  - `item_0002` [artikel-edukasi-contoh.json#2] kualitas B — Artikel contoh menyatakan bahwa penawaran harga untuk barang yang sama dapat berbeda antar toko karena perbedaan metode uji dan potongan. (sumber: CONTOH — artikel edukasi fiktif (pengujian))
-  - `item_0003` [catatan-lapangan-contoh.md#1] kualitas A — Petugas mencatat bahwa papan di depan toko menampilkan angka per gram untuk emas 24K dan 22K dan menyebut "harga tertinggi" sebagai slogan. (sumber: CONTOH — catatan lapangan fiktif untuk pengujian MIA)
+  - `item_0002` `artikel-edukasi-contoh.json#2` kualitas B — Artikel contoh menyatakan bahwa penawaran harga untuk barang yang sama dapat berbeda antar toko karena perbedaan metode uji dan potongan. (sumber: CONTOH — artikel edukasi fiktif (pengujian))
+  - `item_0003` `catatan-lapangan-contoh.md#1` kualitas A — Petugas mencatat bahwa papan di depan toko menampilkan angka per gram untuk emas 24K dan 22K dan menyebut "harga tertinggi" sebagai slogan. (sumber: CONTOH — catatan lapangan fiktif untuk pengujian MIA)
 - **Penilaian:** Kekuatan bukti 3 (code) · Niat pelanggan 2 (agent) · Kesesuaian strategis 3 (agent) · Kemudahan pengujian 2 (agent) · Keterukuran 2 (agent)
 - **Pesan (bahasa niat):** Harga akan datang dengan dasar hitungnya: berat bersih, kadar, dan pengurang akan kami tampilkan.
 - **Konsep penawaran:** Artikel edukasi tentang komponen penawaran tanpa angka harga. · **Kanal:** Halaman edukasi situs
@@ -102,7 +102,7 @@ _Tidak ada._
 - **Interpretasi strategis (bukan fakta):** Interpretasi: penjemputan ke rumah mungkin menjawab keinginan proses cepat, tetapi belum ada bukti permintaan nyata dan memerlukan staf serta prosedur keamanan.
 - **Fakta pendukung (ID bukti):** tidak ada
 - **Hipotesis yang dikutip:**
-  - `item_0006` [pertanyaan-pelanggan-contoh.csv#2] — Calon penjual ingin tahu berapa lama proses dari datang sampai pembayaran selesai.
+  - `item_0006` `pertanyaan-pelanggan-contoh.csv#2` — Calon penjual ingin tahu berapa lama proses dari datang sampai pembayaran selesai.
 - **Penilaian:** Kekuatan bukti 0 (code) · Niat pelanggan 1 (agent+cap (tanpa fakta tervalidasi berkualitas A–C)) · Kesesuaian strategis 1 (agent) · Kemudahan pengujian 0 (agent) · Keterukuran 1 (agent)
 - **Batas tingkat:** evidence — hipotesis tanpa fakta A/B
 - Gerbang evidence (lolos): tidak ada fakta tervalidasi berkualitas A/B yang dikutip: dicatat sebagai hipotesis, tingkat maksimal C

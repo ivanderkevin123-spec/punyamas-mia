@@ -193,6 +193,19 @@ func (r *Renderer) BuildContent(ctx context.Context, run *domain.Run, sum *domai
 			d.Draft = append(d.Draft, *v)
 		}
 	}
+	// Status, placeholder, claim and evidence counts always come from the stored drafts, so a re-rendered
+	// report reflects reviews and revisions made after the run; only the agent-output counters
+	// (proposed, structurally rejected, duplicates) come from the run summary.
+	d.Counts.Stored, d.Counts.Draft, d.Counts.NeedsReview = len(drafts), len(d.Draft), len(d.NeedsReview)
+	d.Counts.Approved, d.Counts.Rejected, d.Counts.Blocked = len(d.Approved), len(d.Rejected), len(d.Blocked)
+	d.Counts.Placeholders, d.Counts.ClaimsToVerify, d.Counts.EvidenceLinks = 0, 0, 0
+	for _, group := range [][]DraftView{d.NeedsReview, d.Draft, d.Approved, d.Rejected, d.Blocked} {
+		for _, v := range group {
+			d.Counts.Placeholders += len(v.Placeholders)
+			d.Counts.ClaimsToVerify += len(v.ClaimsToVerify)
+			d.Counts.EvidenceLinks += len(v.Evidence)
+		}
+	}
 	for _, e := range execs {
 		ev := ExecView{ID: e.ID, Agent: e.AgentName, Provider: e.ProviderName, Model: e.Model, Outcome: e.Outcome, InputTokens: e.InputTokens, OutputTokens: e.OutputTokens, Measurable: e.CostMeasurable, Error: e.ErrorText, Cost: "tidak terukur"}
 		if e.CostUSD != nil {

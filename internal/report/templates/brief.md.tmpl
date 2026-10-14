@@ -14,16 +14,16 @@
 {{text .Opp.Brief.Need}}
 
 ## Fakta pendukung (bersumber, tervalidasi)
-{{if not .Opp.Brief.Facts}}_Tidak ada._{{end}}{{range .Opp.Brief.Facts}}- `{{code .ID}}` [{{code .Ref}}] (kualitas {{.Quality}}) {{text .Statement}} — sumber: {{text .SourceName}}
+{{if not .Opp.Brief.Facts}}_Tidak ada._{{end}}{{range .Opp.Brief.Facts}}- `{{code .ID}}` `{{code .Ref}}` (kualitas {{.Quality}}) {{text .Statement}} — sumber: {{text .SourceName}}
 {{end}}
 ## Interpretasi strategis (bukan fakta)
 {{text .Opp.Brief.Interpretation}}
 {{if .Opp.Brief.Interpretations}}
 Interpretasi riset yang dikutip:
-{{range .Opp.Brief.Interpretations}}- `{{code .ID}}` [{{code .Ref}}] {{text .Statement}}
+{{range .Opp.Brief.Interpretations}}- `{{code .ID}}` `{{code .Ref}}` {{text .Statement}}
 {{end}}{{end}}{{if .Opp.Brief.Hypotheses}}
 Hipotesis yang dikutip:
-{{range .Opp.Brief.Hypotheses}}- `{{code .ID}}` [{{code .Ref}}] {{text .Statement}}
+{{range .Opp.Brief.Hypotheses}}- `{{code .ID}}` `{{code .Ref}}` {{text .Statement}}
 {{end}}{{end}}
 ## Pesan, konsep penawaran, kanal
 - **Pesan (bahasa niat):** {{text .Opp.Brief.Message}}

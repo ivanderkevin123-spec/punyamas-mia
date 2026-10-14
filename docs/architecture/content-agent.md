@@ -79,7 +79,7 @@ proposal ─────────────► draft ───────�
 
 ## 8. Reports
 
-`reports/<run>/content.md|html`: not-published banner, source opportunity with approval history and evidence, summary counts, steps, drafts grouped by status (needs review, passed gates, approved, rejected, blocked) with readiness, body as an escaped blockquote, evidence, business facts, supported and unsupported claims, placeholders, findings, assumptions, risks, checklist, versions, reviews and provenance; executions and costs. Markdown uses `text/cell/code/quote` escaping (a body cannot add headings, links, HTML or fake fields); HTML uses `html/template` auto-escaping.
+`reports/<run>/content.md|html`: not-published banner, source opportunity with approval history and evidence, summary counts, steps, drafts grouped by status (needs review, passed gates, approved, rejected, blocked) with readiness, body as an escaped blockquote, evidence, business facts, supported and unsupported claims, placeholders, findings, assumptions, risks, checklist, versions, reviews and provenance; executions and costs. Markdown uses `text/cell/code/quote` escaping (a body cannot add headings, links, HTML or fake fields); HTML uses `html/template` auto-escaping. Since Phase 5 the status, placeholder, claim and evidence counts are derived from the stored drafts at render time, so `mia report <content-run>` stays current after reviews and revisions; only the agent-output counters come from the run summary.
 
 ## 9. Known limitations
 

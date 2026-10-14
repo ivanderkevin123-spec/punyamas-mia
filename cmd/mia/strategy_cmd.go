@@ -31,6 +31,9 @@ func cmdRunStrategy(ctx context.Context, args []string, stdout, stderr io.Writer
 		fmt.Fprintln(stderr, "gunakan: mia run strategy --from-run RUN_ID  (atau --resume RUN_ID)")
 		return 1
 	}
+	if !checkIDs(stderr, "run riset", *from, "run", *resume) {
+		return 1
+	}
 	a, err := newApp(*root, stderr)
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
@@ -64,6 +67,9 @@ func cmdOpportunities(ctx context.Context, args []string, stdout, stderr io.Writ
 	}
 	if *runID == "" {
 		fmt.Fprintln(stderr, "gunakan: mia opportunities --run RUN_ID")
+		return 1
+	}
+	if !checkIDs(stderr, "run", *runID) {
 		return 1
 	}
 	a, err := newApp(*root, io.Discard)
@@ -116,6 +122,9 @@ func cmdApproveOpportunity(ctx context.Context, args []string, stdout, stderr io
 		fmt.Fprintln(stderr, "gunakan: mia approve opportunity --id ID --decision approved|rejected|needs_more_evidence --note TEKS")
 		return 1
 	}
+	if !checkIDs(stderr, "peluang", *id) {
+		return 1
+	}
 	a, err := newApp(*root, stderr)
 	if err != nil {
 		fmt.Fprintln(stderr, "kesalahan:", err)
@@ -160,6 +169,9 @@ func cmdExportBrief(ctx context.Context, args []string, stdout, stderr io.Writer
 	}
 	if *id == "" {
 		fmt.Fprintln(stderr, "gunakan: mia export brief --id ID [--out PATH]")
+		return 1
+	}
+	if !checkIDs(stderr, "peluang", *id) {
 		return 1
 	}
 	a, err := newApp(*root, stderr)
